@@ -36,8 +36,18 @@ const EpubReader = ({ bookId, meta }) => {
 
   useEffect(() => {
     let cancelled = false;
-    const book = ePub(meta.fileUrl, { requestCredentials: true });
+    // Fetch the file ourselves: epub.js infers the type from the URL
+    // extension, and our download URLs have none, so passing the URL
+    // directly makes it silently treat the book as an unpacked folder.
+    const book = ePub();
     bookRef.current = book;
+    fetch(meta.fileUrl, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`epub fetch: ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then((buf) => book.open(buf, "binary"))
+      .catch((err) => !cancelled && setError(err));
 
     const rendition = book.renderTo(viewRef.current, {
       width: "100%",
