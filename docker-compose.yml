@@ -1,0 +1,14 @@
+services:
+  polka:
+    image: ghcr.io/vestigiumincaligne/polka:latest
+    # Or build locally instead:
+    # build: .
+    ports:
+      - "12791:12791"
+    volumes:
+      - polka-data:/data        # database, settings, covers cache
+      - ./books:/books          # your book collection (fb2/epub/pdf/... or an unpacked inpx library)
+    restart: unless-stopped
+
+volumes:
+  polka-data:

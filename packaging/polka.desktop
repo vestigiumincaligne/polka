@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Полка
+GenericName=Домашняя библиотека
+Comment=Каталог, чтение и управление домашней библиотекой электронных книг
+Exec=polka-desktop
+Icon=polka
+Terminal=false
+Categories=Office;Viewer;Literature;
+Keywords=книги;библиотека;books;ebook;reader;

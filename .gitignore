@@ -1,0 +1,11 @@
+bin/
+web/dist/
+web/node_modules/
+web/.env.local
+*.log
+dist/
+android/local.properties
+android/app/build/
+android/.gradle/
+android/app/libs/*.aar
+android/app/libs/*.jar

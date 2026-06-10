@@ -1,0 +1,28 @@
+.rate-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.rate-stars__star {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--border, rgba(0, 0, 0, 0.2));
+  transition: color 0.1s ease, transform 0.1s ease;
+}
+
+.rate-stars__star.is-filled {
+  color: var(--accent, #ffd24c);
+}
+
+.rate-stars__star.is-hovering.is-filled {
+  transform: scale(1.12);
+}
+
+.rate-stars__star:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

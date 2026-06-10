@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+bin
+dist
+web/node_modules
+web/dist
+packaging
+*.md

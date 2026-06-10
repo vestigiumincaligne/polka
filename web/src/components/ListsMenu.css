@@ -1,0 +1,76 @@
+.lists-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.lists-menu__pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  min-width: 240px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.14);
+  padding: 8px;
+}
+
+.lists-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-size: 14px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.lists-menu__item:hover {
+  background: var(--bg-muted, rgba(0, 0, 0, 0.05));
+}
+
+.lists-menu__check {
+  width: 16px;
+  color: transparent;
+  font-weight: 700;
+}
+
+.lists-menu__check.is-on {
+  color: var(--accent-strong, #d9a400);
+}
+
+.lists-menu__hint {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--fg-muted, #777);
+}
+
+.lists-menu__new {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+.lists-menu__new input {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+  background: var(--bg);
+  color: var(--fg);
+  min-width: 0;
+}
+
+.lists-menu__new .btn {
+  padding: 6px 12px;
+}

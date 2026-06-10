@@ -1,0 +1,22 @@
+.root-main {
+  min-height: calc(100vh - var(--header-h) - 64px);
+}
+
+.root-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.root-footer__link {
+  color: var(--fg-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--border-strong);
+}
+
+.root-footer__link:hover {
+  color: var(--fg);
+}

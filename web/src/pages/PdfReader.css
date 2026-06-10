@@ -1,0 +1,20 @@
+.pdf-reader__pages {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px 8px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdf-reader__page {
+  width: 100%;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pdf-reader__page canvas {
+  display: block;
+}

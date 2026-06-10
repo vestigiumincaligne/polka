@@ -1,0 +1,150 @@
+.sync-page {
+  padding-top: 24px;
+  padding-bottom: 48px;
+}
+
+.sync-page__header h1 {
+  margin: 0 0 18px;
+}
+
+.sync-page__status {
+  background: var(--bg-card, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-page__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.sync-page__label {
+  color: var(--fg-muted, #777);
+}
+
+.sync-page__online {
+  color: #1b7f3b;
+  font-weight: 600;
+}
+
+.sync-page__offline {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.sync-page__status .btn {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+.sync-page__hint {
+  color: var(--fg-muted, #777);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.sync-page__offline-books {
+  margin-top: 32px;
+}
+
+.sync-page__offline-books h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+}
+
+.sync-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px 16px;
+}
+
+.sync-page__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.sync-page__remove {
+  font-size: 12px;
+  color: var(--fg-muted, #777);
+}
+
+@media (max-width: 480px) {
+  .sync-page__grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  }
+}
+
+.sync-page__restart {
+  background: var(--accent-soft, rgba(255, 210, 76, 0.25));
+  border: 1px solid var(--accent, #ffd24c);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-bottom: 18px;
+  max-width: 560px;
+}
+
+.sync-page__form {
+  margin-top: 28px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-page__form h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.sync-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--fg-muted, #777);
+}
+
+.sync-page__field input {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.sync-page__field input:focus {
+  outline: 2px solid var(--accent, #ffd24c);
+  outline-offset: 1px;
+}
+
+.sync-page__error {
+  color: #b3261e;
+  font-size: 13px;
+}
+
+.sync-page__form .btn {
+  align-self: flex-start;
+}
+
+.sync-page__actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.sync-page__danger {
+  color: #b3261e;
+}
