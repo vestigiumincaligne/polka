@@ -82,35 +82,12 @@
   z-index: 1;
 }
 
-.hero__deco-card {
+.hero__deco-img {
   position: absolute;
-  width: 130px;
-  aspect-ratio: 2 / 3;
-  background: var(--bg-muted);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-}
-
-.hero__deco-card--1 {
-  top: 0;
-  right: 80px;
-  background: linear-gradient(160deg, #ffd24c, #f1b300);
-  transform: rotate(-6deg);
-}
-
-.hero__deco-card--2 {
-  top: 12px;
-  right: 0;
-  background: linear-gradient(160deg, #1a1714, #3a342b);
-  transform: rotate(8deg);
-}
-
-.hero__deco-card--3 {
-  top: 60px;
-  right: 40px;
-  background: linear-gradient(160deg, #ffffff, #ece8df);
-  transform: rotate(2deg);
-  border: 1px solid var(--border);
+  inset: -40px -20px;
+  width: calc(100% + 40px);
+  height: calc(100% + 80px);
+  object-fit: contain;
 }
 
 .homepage__shelves {

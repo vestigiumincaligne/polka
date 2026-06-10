@@ -71,9 +71,7 @@ const HomePage = ({ config }) => {
           </div>
         </div>
         <div className="hero__deco" aria-hidden="true">
-          <div className="hero__deco-card hero__deco-card--1" />
-          <div className="hero__deco-card hero__deco-card--2" />
-          <div className="hero__deco-card hero__deco-card--3" />
+          <img className="hero__deco-img" src="/hero-books.png" alt="" />
         </div>
       </section>
 
