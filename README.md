@@ -11,6 +11,8 @@ mobile reading app.
 One small binary. No external services required. Your books never leave your
 machine.
 
+![Polka home page — personal shelves with covers, search, and reading progress](docs/screenshot-home.png)
+
 ---
 
 ## Highlights
