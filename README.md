@@ -43,10 +43,11 @@ machine.
   names and the OPDS feed are localized too.
 - **Mobile-friendly + PWA.** Add Polka to your phone's home screen and it
   behaves like an app.
-- **Desktop apps.** Native-feel clients for Windows and Linux that run either
-  standalone (your library on one machine) or connected to your server with
-  two-way sync of progress, ratings, and lists — including offline copies of
-  selected books.
+- **Desktop apps that don't need a server.** Native-feel clients for Windows
+  and Linux work fully standalone: your library, reader, lists and ratings
+  live right on your machine — no server, no account, no internet required.
+  Optionally connect them to your Polka server later and get two-way sync of
+  progress, ratings, and lists, including offline copies of selected books.
 
 ## Quick start
 
@@ -67,6 +68,15 @@ exploring. Or use [docker-compose.yml](docker-compose.yml):
 ```sh
 docker compose up -d
 ```
+
+### Desktop app — no server required
+
+If you just want a personal library on one computer, skip the server entirely:
+install the desktop app from the [releases](../../releases) page
+(`polka-setup-<version>.exe` on Windows, `.deb`/`.rpm` on Linux) and launch
+**Polka**. It opens in its own window, stores everything locally, and works
+offline. You can connect it to a server later at any time — nothing to
+reconfigure.
 
 ### Prebuilt binaries and installers
 
@@ -113,7 +123,8 @@ ratings and lists live in a separate database and survive re-imports.
 `polka-desktop` opens Polka in its own window (WebView2 on Windows, Chromium
 app window on Linux) and can work two ways:
 
-- **Standalone** — a personal library on your computer, no server needed.
+- **Standalone (default)** — a personal library on your computer. No server,
+  no sign-in, works completely offline.
 - **Connected** — point it at your Polka server (*Server* page in the app):
   the full catalog is available online, selected books are downloaded for
   offline reading, and progress / ratings / lists sync both ways automatically.
