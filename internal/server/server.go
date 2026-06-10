@@ -91,13 +91,15 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 				s.sync.Proxy(w, r)
 			})
 		}
-	} else if !s.demoMode() {
-		// Library management (administrator only)
-		mux.HandleFunc("POST /admin/books/upload", s.adminOnly(s.handleBookUpload))
-		mux.HandleFunc("POST /admin/books/{id}/delete", s.adminOnly(s.handleBookSetDeleted(true)))
-		mux.HandleFunc("POST /admin/books/{id}/restore", s.adminOnly(s.handleBookSetDeleted(false)))
-		mux.HandleFunc("POST /admin/import/inpx", s.adminOnly(s.handleImportInpx))
-		mux.HandleFunc("GET /admin/import/status", s.adminOnly(s.handleImportStatus))
+	} else {
+		// Library management (administrator only; absent in demo mode)
+		if !s.demoMode() {
+			mux.HandleFunc("POST /admin/books/upload", s.adminOnly(s.handleBookUpload))
+			mux.HandleFunc("POST /admin/books/{id}/delete", s.adminOnly(s.handleBookSetDeleted(true)))
+			mux.HandleFunc("POST /admin/books/{id}/restore", s.adminOnly(s.handleBookSetDeleted(false)))
+			mux.HandleFunc("POST /admin/import/inpx", s.adminOnly(s.handleImportInpx))
+			mux.HandleFunc("GET /admin/import/status", s.adminOnly(s.handleImportStatus))
+		}
 
 		// Bulk book export (any logged-in user)
 		mux.HandleFunc("GET /Images/export", s.protected(s.handleExport))
