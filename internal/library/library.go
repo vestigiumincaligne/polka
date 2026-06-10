@@ -3,6 +3,7 @@
 package library
 
 import (
+	"bytes"
 	"archive/zip"
 	"errors"
 	"fmt"
@@ -114,20 +115,37 @@ func (l *Library) Cover(bookID int64, folder, file, ext string) ([]byte, string,
 }
 
 func (l *Library) extractCover(folder, file, ext string) ([]byte, string, error) {
-	if !strings.EqualFold(ext, "fb2") {
-		return nil, "", ErrNoFile
-	}
-	rc, _, err := l.Open(folder, file, ext)
-	if err != nil {
-		return nil, "", err
-	}
-	defer rc.Close()
+	switch {
+	case strings.EqualFold(ext, "fb2"):
+		rc, _, err := l.Open(folder, file, ext)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		meta, err := ParseFB2(rc, true)
+		if err != nil || len(meta.Cover) == 0 {
+			return nil, "", ErrNoFile
+		}
+		return meta.Cover, meta.CoverMime, nil
 
-	meta, err := ParseFB2(rc, true)
-	if err != nil || len(meta.Cover) == 0 {
-		return nil, "", ErrNoFile
+	case strings.EqualFold(ext, "epub"):
+		rc, _, err := l.Open(folder, file, ext)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		// zip needs random access; an EPUB fits in memory comfortably
+		raw, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, "", err
+		}
+		data, mime, err := EPUBCover(bytes.NewReader(raw), int64(len(raw)))
+		if err != nil {
+			return nil, "", ErrNoFile
+		}
+		return data, mime, nil
 	}
-	return meta.Cover, meta.CoverMime, nil
+	return nil, "", ErrNoFile
 }
 
 // Text converts a book (fb2 or txt) into HTML chapters for online reading.

@@ -104,3 +104,89 @@ func parseOPF(r io.Reader) (*EPUBMeta, error) {
 	}
 	return meta, nil
 }
+
+// EPUBCover extracts the cover image: an EPUB3 manifest item with
+// properties="cover-image", or the EPUB2 <meta name="cover"> pointer.
+func EPUBCover(r io.ReaderAt, size int64) ([]byte, string, error) {
+	zr, err := zip.NewReader(r, size)
+	if err != nil {
+		return nil, "", fmt.Errorf("open epub: %w", err)
+	}
+	opfPath, err := epubRootFile(zr)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var opf struct {
+		Metadata struct {
+			Metas []struct {
+				Name    string `xml:"name,attr"`
+				Content string `xml:"content,attr"`
+			} `xml:"meta"`
+		} `xml:"metadata"`
+		Manifest struct {
+			Items []struct {
+				ID         string `xml:"id,attr"`
+				Href       string `xml:"href,attr"`
+				MediaType  string `xml:"media-type,attr"`
+				Properties string `xml:"properties,attr"`
+			} `xml:"item"`
+		} `xml:"manifest"`
+	}
+	rc, err := openZipFile(zr, opfPath)
+	if err != nil {
+		return nil, "", err
+	}
+	err = xml.NewDecoder(rc).Decode(&opf)
+	rc.Close()
+	if err != nil {
+		return nil, "", fmt.Errorf("parse opf: %w", err)
+	}
+
+	href, mime := "", ""
+	for _, it := range opf.Manifest.Items {
+		if strings.Contains(it.Properties, "cover-image") {
+			href, mime = it.Href, it.MediaType
+			break
+		}
+	}
+	if href == "" {
+		coverID := ""
+		for _, m := range opf.Metadata.Metas {
+			if strings.EqualFold(m.Name, "cover") {
+				coverID = m.Content
+				break
+			}
+		}
+		for _, it := range opf.Manifest.Items {
+			if coverID != "" && it.ID == coverID {
+				href, mime = it.Href, it.MediaType
+				break
+			}
+		}
+	}
+	if href == "" {
+		return nil, "", fmt.Errorf("epub: no cover")
+	}
+
+	coverPath := path.Join(path.Dir(opfPath), href)
+	rc, err = openZipFile(zr, coverPath)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, mime, nil
+}
+
+func openZipFile(zr *zip.Reader, name string) (io.ReadCloser, error) {
+	for _, f := range zr.File {
+		if strings.EqualFold(f.Name, name) || strings.EqualFold(f.Name, strings.TrimPrefix(name, "./")) {
+			return f.Open()
+		}
+	}
+	return nil, fmt.Errorf("epub: %s not found", name)
+}
