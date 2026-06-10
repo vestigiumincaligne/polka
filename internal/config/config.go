@@ -16,7 +16,8 @@ type Config struct {
 	DataDir string
 	// LibraryDir is the root directory with book files and archives.
 	LibraryDir string
-	// Auth: "required" — catalog only after login, "public" — open.
+	// Auth: "required" — catalog only after login, "public" — open,
+	// "demo" — public showcase with ephemeral guest sessions.
 	Auth string
 }
 
@@ -41,7 +42,7 @@ func Load(args []string, extra func(*flag.FlagSet)) (*Config, []string, error) {
 	fs.StringVar(&cfg.Addr, "addr", env("POLKA_ADDR", ":12791"), "HTTP listen address")
 	fs.StringVar(&cfg.DataDir, "data-dir", env("POLKA_DATA_DIR", defaultData), "directory for database and caches")
 	fs.StringVar(&cfg.LibraryDir, "library-dir", env("POLKA_LIBRARY_DIR", ""), "root directory of the book library")
-	fs.StringVar(&cfg.Auth, "auth", env("POLKA_AUTH", "required"), `access mode: "required" or "public"`)
+	fs.StringVar(&cfg.Auth, "auth", env("POLKA_AUTH", "required"), `access mode: "required", "public" or "demo"`)
 	if extra != nil {
 		extra(fs)
 	}

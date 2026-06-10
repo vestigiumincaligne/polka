@@ -57,8 +57,8 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 	mux.HandleFunc("GET /auth/me", s.handleMe)
 
 	// User management (administrator only).
-	// In desktop mode there is a single user, so this section does not exist.
-	if s.desktop == nil {
+	// Absent in desktop mode (single user) and in demo mode.
+	if s.desktop == nil && !s.demoMode() {
 		mux.HandleFunc("GET /admin/users", s.adminOnly(s.handleUsersList))
 		mux.HandleFunc("POST /admin/users", s.adminOnly(s.handleUserCreate))
 		mux.HandleFunc("POST /admin/users/{id}", s.adminOnly(s.handleUserUpdate))
@@ -91,7 +91,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 				s.sync.Proxy(w, r)
 			})
 		}
-	} else {
+	} else if !s.demoMode() {
 		// Library management (administrator only)
 		mux.HandleFunc("POST /admin/books/upload", s.adminOnly(s.handleBookUpload))
 		mux.HandleFunc("POST /admin/books/{id}/delete", s.adminOnly(s.handleBookSetDeleted(true)))
@@ -143,8 +143,10 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		mux.HandleFunc("GET /Images/fb2compact/{id}", s.protected(s.handleBookCompact))
 
 		// Settings (administrator only)
-		mux.HandleFunc("GET /admin/settings", s.adminOnly(s.handleSettingsGet))
-		mux.HandleFunc("POST /admin/settings", s.adminOnly(s.handleSettingsSave))
+		if !s.demoMode() {
+			mux.HandleFunc("GET /admin/settings", s.adminOnly(s.handleSettingsGet))
+			mux.HandleFunc("POST /admin/settings", s.adminOnly(s.handleSettingsSave))
+		}
 
 		// User data state for desktop clients
 		mux.HandleFunc("GET /api/v1/sync/state", s.protected(s.handleSyncExport))
@@ -168,7 +170,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 
 	return &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           s.logRequests(mux),
+		Handler:           s.logRequests(s.maybeDemo(mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 }
