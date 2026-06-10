@@ -190,3 +190,69 @@ func openZipFile(zr *zip.Reader, name string) (io.ReadCloser, error) {
 	}
 	return nil, fmt.Errorf("epub: %s not found", name)
 }
+
+// subjectGenres maps common English subject keywords (Gutenberg, LCSH,
+// publisher metadata) to FB2 genre codes. Substring match, lowercase.
+var subjectGenres = []struct{ key, code string }{
+	{"science fiction", "sf"},
+	{"fantasy", "sf_fantasy"},
+	{"fairy tales", "child_tale"},
+	{"horror", "sf_horror"},
+	{"ghost", "sf_horror"},
+	{"gothic", "sf_horror"},
+	{"detective", "detective"},
+	{"mystery", "detective"},
+	{"crime", "det_crime"},
+	{"love stories", "love"},
+	{"romance", "love"},
+	{"sea stories", "adv_maritime"},
+	{"pirates", "adv_maritime"},
+	{"western", "adv_western"},
+	{"adventure", "adventure"},
+	{"treasure", "adventure"},
+	{"historical fiction", "prose_history"},
+	{"war stories", "prose_military"},
+	{"satire", "humor_prose"},
+	{"humor", "humor_prose"},
+	{"comic", "humor_prose"},
+	{"juvenile", "children"},
+	{"children", "children"},
+	{"poetry", "poetry"},
+	{"drama", "dramaturgy"},
+	{"biography", "nonf_biography"},
+	{"autobiograph", "nonf_biography"},
+	{"philosophy", "sci_philosophy"},
+	{"psychology", "sci_psychology"},
+	{"mythology", "antique_myths"},
+	{"epic literature", "antique_myths"},
+	{"classical literature", "antique_ant"},
+	{"bildungsromans", "prose_classic"},
+	{"domestic fiction", "prose_classic"},
+	{"psychological fiction", "prose_classic"},
+	{"political fiction", "prose_classic"},
+	{"didactic fiction", "prose_classic"},
+	{"young women", "prose_classic"},
+	{"england", "prose_classic"},
+	{"fiction", "prose_classic"}, // generic fallback, keep last
+}
+
+// GenresFromSubjects derives FB2 genre codes from free-form subject
+// strings (dc:subject). Up to three distinct genres, ordered by the
+// first matching subject.
+func GenresFromSubjects(subjects []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, pair := range subjectGenres {
+		for _, subj := range subjects {
+			if strings.Contains(strings.ToLower(subj), pair.key) && !seen[pair.code] {
+				seen[pair.code] = true
+				out = append(out, pair.code)
+				break
+			}
+		}
+		if len(out) >= 3 {
+			break
+		}
+	}
+	return out
+}

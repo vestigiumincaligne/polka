@@ -221,9 +221,6 @@
   color: #b3261e;
 }
 
-.book-page__cover {
-  position: relative;
-}
 
 .book-page__progress {
   position: absolute;

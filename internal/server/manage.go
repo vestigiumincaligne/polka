@@ -235,6 +235,7 @@ func (s *Server) extractUploadMeta(path, base, ext string) *store.BookInput {
 		}
 		input.Lang = meta.Language
 		input.Keywords = meta.Subjects
+		input.Genres = library.GenresFromSubjects(meta.Subjects)
 	}
 	return input
 }

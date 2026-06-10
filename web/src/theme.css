@@ -74,6 +74,7 @@ body,
 }
 
 body {
+  overflow-x: clip;
   min-height: 100vh;
 }
 
