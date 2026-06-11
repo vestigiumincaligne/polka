@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -75,6 +76,7 @@ func EPUBText(r io.ReaderAt, size int64, imgURL func(string) string) (*FB2Text, 
 
 	opfDir := path.Dir(opfPath)
 	res := &FB2Text{}
+	chapterByDoc := map[string]int{}
 	for _, ref := range opf.Spine.Refs {
 		if ref.Linear == "no" {
 			continue
@@ -93,12 +95,37 @@ func EPUBText(r io.ReaderAt, size int64, imgURL func(string) string) (*FB2Text, 
 		if strings.TrimSpace(body) == "" {
 			continue
 		}
+		chapterByDoc[docPath] = len(res.Chapters)
 		res.Chapters = append(res.Chapters, FB2Chapter{Title: title, HTML: body})
 	}
 	if len(res.Chapters) == 0 {
 		return nil, fmt.Errorf("epub: no readable chapters")
 	}
+	// Second pass: internal links now resolve to chapter indexes.
+	for i := range res.Chapters {
+		res.Chapters[i].HTML = resolveDocLinks(res.Chapters[i].HTML, chapterByDoc)
+	}
 	return res, nil
+}
+
+// resolveDocLinks rewrites data-doc placeholders into data-goto chapter
+// jumps; links to unknown documents lose the attribute and act as text.
+func resolveDocLinks(h string, chapterByDoc map[string]int) string {
+	return docLinkRe.ReplaceAllStringFunc(h, func(m string) string {
+		target := docLinkRe.FindStringSubmatch(m)[1]
+		unescaped := htmlUnescape(target)
+		if idx, ok := chapterByDoc[unescaped]; ok {
+			return fmt.Sprintf(`<a data-goto="%d">`, idx)
+		}
+		return "<a>"
+	})
+}
+
+var docLinkRe = regexp.MustCompile(`<a data-doc="([^"]*)">`)
+
+func htmlUnescape(s string) string {
+	r := strings.NewReplacer("&amp;", "&", "&lt;", "<", "&gt;", ">", "&#34;", `"`, "&#39;", "'")
+	return r.Replace(s)
 }
 
 // epubChapterHTML extracts the body of a spine document as sanitized
@@ -152,7 +179,18 @@ func epubChapterHTML(r io.Reader, baseDir string, imgURL func(string) string) (t
 				}
 				return
 			case tag == "a":
-				// External links are stripped to text; internal anchors too.
+				// Internal links (table of contents etc.) survive as
+				// chapter jumps; the target is resolved in a second pass.
+				if href := nodeAttr(n, "href"); href != "" && !strings.Contains(href, "://") && !strings.HasPrefix(href, "#") {
+					target := path.Clean(path.Join(baseDir, strings.SplitN(href, "#", 2)[0]))
+					sb.WriteString(`<a data-doc="` + html.EscapeString(target) + `">`)
+					for c := n.FirstChild; c != nil; c = c.NextSibling {
+						render(c)
+					}
+					sb.WriteString("</a>")
+					return
+				}
+				// External links and same-page anchors become plain text.
 			}
 			allowed := epubAllowedTags[tag]
 			if title == "" && len(tag) == 2 && tag[0] == 'h' && tag[1] >= '1' && tag[1] <= '4' {

@@ -472,3 +472,16 @@
   gap: 16px;
   font-family: var(--reader-serif);
 }
+
+/* Internal book links (EPUB table of contents) jump between chapters */
+.reader__article a[data-goto] {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-strong, #d9a514);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.reader__article a[data-goto]:hover {
+  color: var(--accent-strong, #b8860b);
+}

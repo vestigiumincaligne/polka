@@ -200,6 +200,13 @@ const ReaderPage = () => {
 
   // --- Footnotes ---
   const onArticleClick = (e) => {
+    const jump = e.target.closest("[data-goto]");
+    if (jump) {
+      e.preventDefault();
+      const n = Number(jump.getAttribute("data-goto"));
+      if (Number.isInteger(n)) goTo(n);
+      return;
+    }
     const ref = e.target.closest("[data-note]");
     if (!ref) return;
     e.preventDefault();
