@@ -1,15 +1,13 @@
-# Polka 📚
+# Polka 
 
 **Your home e-book library — fast, private, and beautiful.**
 
-Polka (Russian for *"bookshelf"*) is a self-hosted library for your e-book
+Polka (Russian for *"bookshelf"*) is a self-hosted library for e-book
 collection. Point it at a folder of books — or import a huge `.inpx` catalog —
 and get a polished web interface with search, covers, annotations, an online
 reader, reading lists, ratings, recommendations, and an OPDS feed for every
 mobile reading app.
 
-One small binary. No external services required. Your books never leave your
-machine.
 
 ![Polka home page — personal shelves with covers, search, and reading progress](docs/screenshot-home.png)
 
