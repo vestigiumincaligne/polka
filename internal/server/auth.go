@@ -58,7 +58,12 @@ func (s *Server) basicUser(r *http.Request, login, password string) *auth.User {
 	s.basic.mu.Lock()
 	if e, ok := s.basic.entries[key]; ok && time.Now().Before(e.expires) {
 		s.basic.mu.Unlock()
-		return e.user
+		// Re-read the disabled flag so a revoked account loses access
+		// immediately instead of lingering until the cache expires.
+		if fresh, err := s.users.GetByID(r.Context(), e.user.ID); err == nil && !fresh.Disabled {
+			return fresh
+		}
+		return nil
 	}
 	s.basic.mu.Unlock()
 
@@ -117,13 +122,14 @@ func userJSON(u *auth.User) map[string]any {
 	}
 }
 
-func (s *Server) setSessionCookie(w http.ResponseWriter, token string, maxAge int) {
+func (s *Server) setSessionCookie(w http.ResponseWriter, r *http.Request, token string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    token,
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
+		Secure:   requestIsSecure(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -139,10 +145,13 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	if !s.loginLimiter.allow(clientIP(r)) {
+		http.Error(w, "too many login attempts, try again later", http.StatusTooManyRequests)
+		return
+	}
 	token, u, err := s.users.Login(r.Context(), req.Login, req.Password)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
-		// Mild brute-force throttling
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond) // slow single attempts on top of the limiter
 		http.Error(w, "invalid login or password", http.StatusUnauthorized)
 		return
 	}
@@ -150,7 +159,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		s.apiError(w, err)
 		return
 	}
-	s.setSessionCookie(w, token, int((7 * 24 * time.Hour).Seconds()))
+	s.setSessionCookie(w, r, token, int((7 * 24 * time.Hour).Seconds()))
 	writeJSON(w, map[string]any{"user": userJSON(u)})
 }
 
@@ -158,7 +167,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		s.users.Logout(r.Context(), c.Value)
 	}
-	s.setSessionCookie(w, "", -1)
+	s.setSessionCookie(w, r, "", -1)
 	writeJSON(w, map[string]any{"ok": true})
 }
 

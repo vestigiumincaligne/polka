@@ -29,12 +29,17 @@ func (s *Server) maybeDemo(h http.Handler) http.Handler {
 func (s *Server) withGuest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.currentUser(r) == nil {
+			if !s.guestLimiter.allow(clientIP(r)) {
+				http.Error(w, "too many requests", http.StatusTooManyRequests)
+				return
+			}
 			if token, _, err := s.users.CreateGuest(r.Context()); err == nil {
 				cookie := &http.Cookie{
 					Name:     sessionCookie,
 					Value:    token,
 					Path:     "/",
 					HttpOnly: true,
+					Secure:   requestIsSecure(r),
 					SameSite: http.SameSiteLaxMode,
 					MaxAge:   24 * 60 * 60,
 				}

@@ -3,8 +3,8 @@
 package library
 
 import (
-	"bytes"
 	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -41,6 +41,12 @@ func New(root string) *Library {
 // under the library root, the file name is file + "." + ext.
 func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {
 	name := file + "." + ext
+	// Confine to the library root: folder/file come from catalog metadata
+	// (including imported inpx files), so a poisoned "../" must not let a
+	// request read files outside the collection.
+	if !pathInside(l.root, folder) || strings.ContainsAny(name, `/\`) {
+		return nil, 0, fmt.Errorf("%w: %s/%s", ErrNoFile, folder, name)
+	}
 	path := filepath.Join(l.root, filepath.FromSlash(folder))
 
 	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
@@ -72,6 +78,17 @@ func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {
 	}
 	zr.Close()
 	return nil, 0, fmt.Errorf("%w: %s in %s", ErrNoFile, name, folder)
+}
+
+// pathInside reports whether root/rel stays under root after cleaning,
+// rejecting "../" traversal and absolute components.
+func pathInside(root, rel string) bool {
+	full := filepath.Join(root, filepath.FromSlash(rel))
+	r, err := filepath.Rel(root, full)
+	if err != nil {
+		return false
+	}
+	return r == "." || (!strings.HasPrefix(r, ".."+string(os.PathSeparator)) && r != "..")
 }
 
 type zipEntryReader struct {

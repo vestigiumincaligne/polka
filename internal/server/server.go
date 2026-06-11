@@ -32,12 +32,18 @@ type Server struct {
 	reader  readerCache // parsed books for online reading
 	basic   basicCache  // verified Basic credentials (OPDS)
 	genres  genreCache  // genre counters for search
+
+	loginLimiter *rateLimiter // throttle password guessing
+	guestLimiter *rateLimiter // throttle demo guest creation
 }
 
 func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Library, users *auth.Service, sync *syncer.Syncer, webFS fs.FS) *http.Server {
 	s := &Server{
 		cfg: cfg, log: log, st: st, lib: lib, users: users, sync: sync,
 		enrich: enrich.New(filepath.Join(cfg.DataDir, "enrichment.json")),
+		// 10 failed logins / 5 min / IP; 20 new guests / min / IP.
+		loginLimiter: newRateLimiter(10, 5*time.Minute),
+		guestLimiter: newRateLimiter(20, time.Minute),
 	}
 	if cfg.Auth == "desktop" {
 		owner, err := users.EnsureLogin(context.Background(), "desktop", "Владелец", auth.RoleAdmin)
@@ -172,7 +178,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 
 	return &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           s.logRequests(s.maybeDemo(mux)),
+		Handler:           securityHeaders(s.logRequests(s.maybeDemo(mux))),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 }

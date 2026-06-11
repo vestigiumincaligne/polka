@@ -13,10 +13,20 @@ import (
 const guestPrefix = "guest-"
 
 // CreateGuest creates an ephemeral demo user with a ready session.
-// Returns the session token to be set as a cookie.
+// Returns the session token to be set as a cookie. Guests never log in
+// with a password (only the session cookie), so we store a disabled
+// hash placeholder instead of running argon2 — that keeps guest
+// creation cheap and unusable for password login.
 func (s *Service) CreateGuest(ctx context.Context) (string, *User, error) {
 	login := guestPrefix + hex.EncodeToString(randomBytes(8))
-	u, err := s.CreateUser(ctx, login, RandomPassword(), "Guest", RoleUser)
+	res, err := s.db.ExecContext(ctx, `
+		INSERT INTO users (login, password_hash, display_name, role) VALUES (?, '!', 'Guest', ?)`,
+		login, RoleUser)
+	if err != nil {
+		return "", nil, err
+	}
+	id, _ := res.LastInsertId()
+	u, err := s.GetByID(ctx, id)
 	if err != nil {
 		return "", nil, err
 	}
