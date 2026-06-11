@@ -12,7 +12,6 @@ import "./ReaderPage.css";
 
 // PDF and EPUB engines are heavy — load them only when such a file is opened.
 const PdfReader = lazy(() => import("./PdfReader"));
-const EpubReader = lazy(() => import("./EpubReader"));
 
 const FONT_SIZES = [17, 19, 21, 24];
 const THEMES = () => [
@@ -72,7 +71,7 @@ const ReaderPage = () => {
     Promise.all([fetchReadMeta(bookId), fetchProgress(bookId).catch(() => null)])
       .then(([m, prog]) => {
         if (cancelled) return;
-        if (m.format === "pdf" || m.format === "epub") {
+        if (m.format === "pdf") {
           setMeta(m); // a dedicated engine will render it
           return undefined;
         }
@@ -247,8 +246,8 @@ const ReaderPage = () => {
     );
   }
 
-  if (meta?.format === "pdf" || meta?.format === "epub") {
-    const Engine = meta.format === "pdf" ? PdfReader : EpubReader;
+  if (meta?.format === "pdf") {
+    const Engine = PdfReader;
     return (
       <Suspense fallback={<div style={{ padding: 48, textAlign: "center" }}>{t("loading")}</div>}>
         <Engine bookId={bookId} meta={meta} />

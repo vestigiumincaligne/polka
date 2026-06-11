@@ -92,10 +92,10 @@ func (s *Server) handleReadMeta(w http.ResponseWriter, r *http.Request) {
 
 	format := strings.ToLower(d.Ext)
 	switch format {
-	case "fb2", "txt":
+	case "fb2", "txt", "epub":
 		// chapters are rendered by our reader — continue below
-	case "pdf", "epub":
-		// rendered by a browser engine (pdf.js / epub.js) from the file
+	case "pdf":
+		// rendered by a browser engine (pdf.js) from the file
 		writeJSON(w, map[string]any{
 			"bookId":  bookID,
 			"format":  format,

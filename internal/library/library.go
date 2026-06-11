@@ -160,21 +160,39 @@ func (l *Library) Text(folder, file, ext string, imgURL func(string) string) (*F
 		return ParseFB2Text(rc, imgURL)
 	case "txt":
 		return ParseTXT(rc)
+	case "epub":
+		raw, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, err
+		}
+		return EPUBText(bytes.NewReader(raw), int64(len(raw)), imgURL)
 	}
 	return nil, ErrNoFile
 }
 
 // Binary extracts an embedded file (illustration) from an FB2 by id.
 func (l *Library) Binary(folder, file, ext, id string) ([]byte, string, error) {
-	if !strings.EqualFold(ext, "fb2") {
-		return nil, "", ErrNoFile
+	switch {
+	case strings.EqualFold(ext, "fb2"):
+		rc, _, err := l.Open(folder, file, ext)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		return ExtractBinary(rc, id)
+	case strings.EqualFold(ext, "epub"):
+		rc, _, err := l.Open(folder, file, ext)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		raw, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, "", err
+		}
+		return EPUBBinary(bytes.NewReader(raw), int64(len(raw)), id)
 	}
-	rc, _, err := l.Open(folder, file, ext)
-	if err != nil {
-		return nil, "", err
-	}
-	defer rc.Close()
-	return ExtractBinary(rc, id)
+	return nil, "", ErrNoFile
 }
 
 // Meta extracts FB2 metadata (annotation, publication info) without the cover.
