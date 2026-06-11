@@ -19,10 +19,10 @@ machine.
 
 - **Built for big collections.** A 690,000-book catalog imports in about a
   minute and stays instant to browse and search (SQLite + FTS5 under the hood).
-- **Read in your browser.** A clean, newspaper-style reader for FB2 and TXT
-  with continuous scrolling, themes (light / sepia / dark), adjustable fonts,
-  footnotes, and per-user reading progress. PDF and EPUB open in dedicated
-  readers with the same progress tracking.
+- **Read in your browser.** A clean, newspaper-style reader for FB2, EPUB and
+  TXT with continuous scrolling, themes (light / sepia / dark), adjustable
+  fonts, footnotes, live tables of contents, and per-user reading progress.
+  PDF opens in a dedicated reader with the same progress tracking.
 - **Find your next book.** Personal shelves: *Reading now*, *Want to read*,
   *Continue the series*, and *For you* — recommendations scored from your
   ratings, lists, and reading history. Plus "similar books" on every book page,
