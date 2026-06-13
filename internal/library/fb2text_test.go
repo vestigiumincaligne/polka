@@ -61,7 +61,7 @@ func TestParseFB2Text(t *testing.T) {
 		"<em>курсивом</em>",
 		`<sup class="fb2-note-ref"><a data-note="n1">[1]</a></sup>`,
 		`<p class="fb2-verse">Строка стиха раз</p>`,
-		`<img class="fb2-img" loading="lazy" src="/img/pic1.jpg"`,
+		`<img class="fb2-img" src="/img/pic1.jpg"`,
 		"<h3>Часть 1.1</h3>",
 		"Вложенный текст.",
 	} {

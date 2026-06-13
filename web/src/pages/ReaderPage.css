@@ -300,10 +300,6 @@
 .reader__content img {
   max-width: 100%;
   height: auto;
-  /* Promote images to their own compositing layer so iOS Safari does
-     not repaint them on every scroll frame (the "flicker on scroll"). */
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 .reader__content .fb2-img {

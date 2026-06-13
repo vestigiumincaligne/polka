@@ -325,7 +325,7 @@ func (c *fb2Converter) convertElement(dec *xml.Decoder, start xml.StartElement, 
 	case "image":
 		id := strings.TrimPrefix(attrValue(start, "href"), "#")
 		if id != "" && c.imgURL != nil {
-			fmt.Fprintf(sb, `<img class="fb2-img" loading="lazy" src="%s" alt=""/>`, html.EscapeString(c.imgURL(id)))
+			fmt.Fprintf(sb, `<img class="fb2-img" src="%s" alt=""/>`, html.EscapeString(c.imgURL(id)))
 		}
 		return dec.Skip()
 

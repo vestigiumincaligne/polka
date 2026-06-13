@@ -244,7 +244,7 @@ func writeImg(sb *strings.Builder, baseDir, src string, imgURL func(string) stri
 	if w, h := imgDims(full); w > 0 && h > 0 {
 		dims = fmt.Sprintf(` width="%d" height="%d"`, w, h)
 	}
-	sb.WriteString(`<img src="` + html.EscapeString(imgURL(url.PathEscape(full))) + `"` + dims + ` loading="lazy"/>`)
+	sb.WriteString(`<img src="` + html.EscapeString(imgURL(url.PathEscape(full))) + `"` + dims + `/>`)
 }
 
 func nodeAttr(n *html.Node, names ...string) string {
