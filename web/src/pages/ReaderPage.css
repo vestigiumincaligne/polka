@@ -1,7 +1,7 @@
 /* Reader styled like a newspaper article: serif type, narrow column, whitespace. */
 
 .reader {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--reader-bg);
   color: var(--reader-fg);
   --reader-serif: georgia, "Times New Roman", "Noto Serif", serif;
@@ -12,7 +12,7 @@
   --reader-fg: #121212;
   --reader-muted: #727272;
   --reader-rule: #e2e2e2;
-  --reader-chrome: rgba(255, 255, 255, 0.96);
+  --reader-chrome: #ffffff;
 }
 
 .reader--sepia {
@@ -20,7 +20,7 @@
   --reader-fg: #433422;
   --reader-muted: #8a7a63;
   --reader-rule: #e0d5bf;
-  --reader-chrome: rgba(246, 239, 225, 0.96);
+  --reader-chrome: #f6efe1;
 }
 
 .reader--night {
@@ -28,7 +28,7 @@
   --reader-fg: #d9d6d0;
   --reader-muted: #8c8a85;
   --reader-rule: #2c2c2c;
-  --reader-chrome: rgba(18, 18, 18, 0.96);
+  --reader-chrome: #121212;
 }
 
 /* --- Top bar --- */
@@ -42,7 +42,6 @@
   gap: 8px;
   padding: 10px 16px;
   background: var(--reader-chrome);
-  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--reader-rule);
 }
 
@@ -298,6 +297,11 @@
   font-size: 0.92em;
 }
 
+.reader__content img {
+  max-width: 100%;
+  height: auto;
+}
+
 .reader__content .fb2-img {
   display: block;
   max-width: 100%;
@@ -391,7 +395,6 @@
   bottom: 0;
   z-index: 25;
   background: var(--reader-chrome);
-  backdrop-filter: blur(8px);
   border-top: 1px solid var(--reader-rule);
 }
 
@@ -464,7 +467,7 @@
 }
 
 .reader__error {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -4,6 +4,10 @@ import (
 	"archive/zip"
 	"encoding/xml"
 	"fmt"
+	"image"
+	_ "image/gif"  // register decoders for image.DecodeConfig
+	_ "image/jpeg" //
+	_ "image/png"  //
 	"io"
 	"net/url"
 	"path"
@@ -74,6 +78,22 @@ func EPUBText(r io.ReaderAt, size int64, imgURL func(string) string) (*FB2Text, 
 		}
 	}
 
+	// imgDims reads just the header of an in-archive image to get its
+	// intrinsic size, so chapters can reserve space and the page does not
+	// jump as images lazy-load (iOS Safari has no scroll-anchoring).
+	imgDims := func(archivePath string) (int, int) {
+		rc, err := openZipFile(zr, archivePath)
+		if err != nil {
+			return 0, 0
+		}
+		defer rc.Close()
+		cfg, _, err := image.DecodeConfig(rc)
+		if err != nil {
+			return 0, 0
+		}
+		return cfg.Width, cfg.Height
+	}
+
 	opfDir := path.Dir(opfPath)
 	res := &FB2Text{}
 	chapterByDoc := map[string]int{}
@@ -90,7 +110,7 @@ func EPUBText(r io.ReaderAt, size int64, imgURL func(string) string) (*FB2Text, 
 		if err != nil {
 			continue
 		}
-		title, body := epubChapterHTML(rc, path.Dir(docPath), imgURL)
+		title, body := epubChapterHTML(rc, path.Dir(docPath), imgURL, imgDims)
 		rc.Close()
 		if strings.TrimSpace(body) == "" {
 			continue
@@ -130,7 +150,7 @@ func htmlUnescape(s string) string {
 
 // epubChapterHTML extracts the body of a spine document as sanitized
 // HTML. The chapter title is taken from the first heading.
-func epubChapterHTML(r io.Reader, baseDir string, imgURL func(string) string) (title, body string) {
+func epubChapterHTML(r io.Reader, baseDir string, imgURL func(string) string, imgDims func(string) (int, int)) (title, body string) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return "", ""
@@ -169,13 +189,13 @@ func epubChapterHTML(r io.Reader, baseDir string, imgURL func(string) string) (t
 				// SVG-wrapped covers: keep nested <image> as <img>
 				if tag == "image" {
 					if src := nodeAttr(n, "href", "xlink:href"); src != "" {
-						writeImg(&sb, baseDir, src, imgURL)
+						writeImg(&sb, baseDir, src, imgURL, imgDims)
 					}
 					return
 				}
 			case tag == "img":
 				if src := nodeAttr(n, "src"); src != "" {
-					writeImg(&sb, baseDir, src, imgURL)
+					writeImg(&sb, baseDir, src, imgURL, imgDims)
 				}
 				return
 			case tag == "a":
@@ -215,12 +235,16 @@ func epubChapterHTML(r io.Reader, baseDir string, imgURL func(string) string) (t
 	return title, sb.String()
 }
 
-func writeImg(sb *strings.Builder, baseDir, src string, imgURL func(string) string) {
+func writeImg(sb *strings.Builder, baseDir, src string, imgURL func(string) string, imgDims func(string) (int, int)) {
 	if strings.Contains(src, "://") {
 		return // remote images are dropped
 	}
 	full := path.Clean(path.Join(baseDir, src))
-	sb.WriteString(`<img src="` + html.EscapeString(imgURL(url.PathEscape(full))) + `" loading="lazy"/>`)
+	dims := ""
+	if w, h := imgDims(full); w > 0 && h > 0 {
+		dims = fmt.Sprintf(` width="%d" height="%d"`, w, h)
+	}
+	sb.WriteString(`<img src="` + html.EscapeString(imgURL(url.PathEscape(full))) + `"` + dims + ` loading="lazy"/>`)
 }
 
 func nodeAttr(n *html.Node, names ...string) string {
