@@ -51,7 +51,7 @@ func Load(args []string, extra func(*flag.FlagSet)) (*Config, []string, error) {
 	}
 
 	if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {
-		return nil, nil, fmt.Errorf("create data dir: %w", err)
+		return nil, nil, fmt.Errorf("create data dir %q: %w (set --data-dir or POLKA_DATA_DIR to a writable path)", cfg.DataDir, err)
 	}
 	return cfg, fs.Args(), nil
 }

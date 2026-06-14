@@ -31,8 +31,9 @@ const usage = `polka — сервер домашней библиотеки
 
 Использование:
   polka [serve] [флаги]          запустить сервер (по умолчанию)
-  polka import <файл.inpx>       импортировать inpx-каталог
+  polka import --inpx <файл>     импортировать inpx-каталог
       --replace                  заменить существующую коллекцию
+      (путь можно указать и позиционным аргументом)
   polka passwd <логин> <пароль>  сменить пароль пользователя (восстановление доступа)
   polka version                  показать версию
 
@@ -177,14 +178,20 @@ func runPasswd(args []string) error {
 
 func runImport(log *slog.Logger, args []string) error {
 	var replace bool
+	var inpxFlag string
 	cfg, rest, err := config.Load(args, func(fs *flag.FlagSet) {
 		fs.BoolVar(&replace, "replace", false, "replace existing collection")
+		fs.StringVar(&inpxFlag, "inpx", "", "path to the .inpx catalog file")
 	})
 	if err != nil {
 		return err
 	}
-	if len(rest) != 1 {
-		return errors.New("укажите путь к inpx-файлу: polka import [флаги] <файл.inpx>")
+	inpxPath := inpxFlag
+	if inpxPath == "" && len(rest) == 1 {
+		inpxPath = rest[0] // also accept the path as a positional argument
+	}
+	if inpxPath == "" {
+		return errors.New("укажите inpx-файл: polka import --inpx <файл.inpx>")
 	}
 
 	if replace {
@@ -199,7 +206,7 @@ func runImport(log *slog.Logger, args []string) error {
 	}
 	defer st.Close()
 
-	stats, err := importer.ImportInpx(context.Background(), log, st, rest[0], nil)
+	stats, err := importer.ImportInpx(context.Background(), log, st, inpxPath, nil)
 	if err != nil {
 		return err
 	}

@@ -401,12 +401,6 @@ func (s *Server) handleImportInpx(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, "upload too large or malformed")
 		return
 	}
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		fail(http.StatusBadRequest, "inpx file is required")
-		return
-	}
-	defer file.Close()
 
 	replace := r.FormValue("replace") == "1"
 	if n, err := s.st.BookCount(r.Context()); err != nil {
@@ -416,6 +410,27 @@ func (s *Server) handleImportInpx(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusConflict, "library is not empty; pass replace=1 to reimport")
 		return
 	}
+
+	// Path mode: the inpx already lives on the server (e.g. a mounted
+	// or NFS collection), so we import it in place without copying.
+	if serverPath := strings.TrimSpace(r.FormValue("path")); serverPath != "" {
+		fi, err := os.Stat(serverPath)
+		if err != nil || fi.IsDir() {
+			fail(http.StatusBadRequest, "inpx path not found on the server")
+			return
+		}
+		go s.runImport(serverPath, replace, false)
+		writeJSON(w, map[string]any{"started": true})
+		return
+	}
+
+	// Upload mode: the inpx is sent as a multipart file.
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		fail(http.StatusBadRequest, "inpx file or server path is required")
+		return
+	}
+	defer file.Close()
 
 	tmp, err := os.CreateTemp(s.cfg.DataDir, "import-*.inpx")
 	if err != nil {
@@ -430,12 +445,14 @@ func (s *Server) handleImportInpx(w http.ResponseWriter, r *http.Request) {
 	}
 	tmp.Close()
 
-	go s.runImport(tmp.Name(), replace)
+	go s.runImport(tmp.Name(), replace, true)
 	writeJSON(w, map[string]any{"started": true})
 }
 
-func (s *Server) runImport(inpxPath string, replace bool) {
-	defer os.Remove(inpxPath)
+func (s *Server) runImport(inpxPath string, replace bool, cleanup bool) {
+	if cleanup {
+		defer os.Remove(inpxPath) // remove the uploaded temp copy, not a server path
+	}
 	ctx := context.Background()
 
 	setPhase := func(phase string, processed int) {

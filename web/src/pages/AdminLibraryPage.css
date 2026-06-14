@@ -198,3 +198,28 @@
   background: var(--bg);
   color: var(--fg);
 }
+
+.library-admin__import-path {
+  margin-top: 12px;
+}
+
+.library-admin__import-or {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--fg-muted);
+  margin-bottom: 6px;
+}
+
+.library-admin__import-path input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--mono, monospace);
+  font-size: 13px;
+}
+
+.library-admin__import-path .library-admin__hint {
+  margin-top: 6px;
+}

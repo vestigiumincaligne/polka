@@ -37,9 +37,10 @@ export const uploadBooks = (files, { force = false } = {}) => {
 export const deleteBook = (id) => post(`admin/books/${id}/delete`);
 export const restoreBook = (id) => post(`admin/books/${id}/restore`);
 
-export const importInpx = (file, replace) => {
+export const importInpx = ({ file, path, replace } = {}) => {
   const fd = new FormData();
-  fd.append("file", file);
+  if (file) fd.append("file", file);
+  if (path) fd.append("path", path);
   if (replace) fd.append("replace", "1");
   return postForm("admin/import/inpx", fd);
 };

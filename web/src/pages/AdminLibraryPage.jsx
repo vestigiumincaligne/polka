@@ -56,6 +56,7 @@ const AdminLibraryPage = () => {
 
   // --- inpx import ---
   const [inpxFile, setInpxFile] = useState(null);
+  const [inpxPath, setInpxPath] = useState("");
   const [replace, setReplace] = useState(false);
   const [status, setStatus] = useState(null);
   const polling = useRef(null);
@@ -77,11 +78,12 @@ const AdminLibraryPage = () => {
   }, []);
 
   const startImport = () => {
-    if (!inpxFile) return;
+    if (!inpxFile && !inpxPath.trim()) return;
     if (replace && !confirm(t("admin.import.confirm"))) return;
-    importInpx(inpxFile, replace)
+    importInpx({ file: inpxFile, path: inpxPath.trim(), replace })
       .then(() => {
         setInpxFile(null);
+        setInpxPath("");
         refreshStatus();
         polling.current = setInterval(refreshStatus, 1000);
       })
@@ -233,10 +235,22 @@ const AdminLibraryPage = () => {
             type="button"
             className="btn btn-primary"
             onClick={startImport}
-            disabled={!inpxFile || importRunning}
+            disabled={(!inpxFile && !inpxPath.trim()) || importRunning}
           >
             {t("admin.import.go")}
           </button>
+        </div>
+
+        <div className="library-admin__import-path">
+          <span className="library-admin__import-or">{t("admin.import.or")}</span>
+          <input
+            type="text"
+            placeholder={t("admin.import.pathPlaceholder")}
+            value={inpxPath}
+            onChange={(e) => setInpxPath(e.target.value)}
+            disabled={importRunning}
+          />
+          <p className="library-admin__hint">{t("admin.import.pathHint")}</p>
         </div>
 
         {status && (status.running || status.phase === "done" || status.phase === "error") && (

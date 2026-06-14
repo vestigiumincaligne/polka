@@ -111,8 +111,13 @@ Polka understands `.inpx` index files (MyHomeLib / Flibusta format) — both
 from the command line and from the web UI (*Manage → Import*):
 
 ```sh
-polka import --inpx collection.inpx --library-dir /path/to/archives
+polka import --inpx collection.inpx --data-dir /path/to/data --library-dir /path/to/archives
 ```
+
+You can also import an inpx that already sits on the server (e.g. a
+mounted or NFS collection) straight from the web UI — paste its path in
+*Manage → Import* instead of uploading. The book archives are looked up
+under `--library-dir`.
 
 Hundreds of thousands of records import in about a minute. Re-importing
 replaces the catalog but **never touches user data** — accounts, progress,

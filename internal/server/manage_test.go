@@ -211,3 +211,68 @@ func TestWebImportInpx(t *testing.T) {
 		t.Errorf("imported book not searchable: %v", stats)
 	}
 }
+
+func TestWebImportInpxFromPath(t *testing.T) {
+	ts, client, _ := newManageServer(t)
+
+	// Write a tiny inpx to a real file on disk (simulating a mounted /
+	// NFS collection the admin points at instead of uploading).
+	var zbuf bytes.Buffer
+	zw := zip.NewWriter(&zbuf)
+	w, _ := zw.Create("books.inp")
+	w.Write([]byte("Лесков,Николай,\x04prose_classic\x04Левша\x04\x04\x04lefty\x04400\x041\x040\x04fb2\x042024-01-01\x04ru\x045\x04\x041881\x04src\r\n"))
+	zw.Close()
+
+	dir := t.TempDir()
+	inpxPath := filepath.Join(dir, "collection.inpx")
+	if err := os.WriteFile(inpxPath, zbuf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	post := func(fields map[string]string) int {
+		var b bytes.Buffer
+		mw := multipart.NewWriter(&b)
+		for k, v := range fields {
+			mw.WriteField(k, v)
+		}
+		mw.Close()
+		req, _ := http.NewRequest(http.MethodPost, ts.URL+"/admin/import/inpx", &b)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	if code := post(map[string]string{}); code != http.StatusBadRequest {
+		t.Fatalf("empty import -> %d", code)
+	}
+	if code := post(map[string]string{"path": filepath.Join(dir, "nope.inpx")}); code != http.StatusBadRequest {
+		t.Fatalf("bad path -> %d", code)
+	}
+	if code := post(map[string]string{"path": inpxPath}); code != http.StatusOK {
+		t.Fatalf("path import start -> %d", code)
+	}
+
+	for deadline := 100; deadline > 0; deadline-- {
+		var status map[string]any
+		resp, _ := client.Get(ts.URL + "/admin/import/status")
+		json.NewDecoder(resp.Body).Decode(&status)
+		resp.Body.Close()
+		if status["running"] == false {
+			if status["phase"] != "done" {
+				t.Fatalf("path import failed: %v", status)
+			}
+			break
+		}
+		if deadline == 1 {
+			t.Fatal("path import did not finish")
+		}
+	}
+
+	if _, err := os.Stat(inpxPath); err != nil {
+		t.Errorf("server-path inpx was removed: %v", err)
+	}
+}

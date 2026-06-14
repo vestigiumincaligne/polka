@@ -25,6 +25,12 @@ FROM alpine:3.21
 RUN adduser -D -H polka && mkdir -p /data /books && chown polka /data /books
 COPY --from=build /polka /usr/local/bin/polka
 USER polka
+# Defaults via env so any subcommand (serve, import, passwd) run with
+# `docker exec` uses the data/library volumes, not the user's home dir.
+ENV POLKA_DATA_DIR=/data \
+    POLKA_LIBRARY_DIR=/books \
+    POLKA_ADDR=:12791
 VOLUME ["/data", "/books"]
 EXPOSE 12791
-ENTRYPOINT ["polka", "serve", "--addr", ":12791", "--data-dir", "/data", "--library-dir", "/books"]
+ENTRYPOINT ["polka"]
+CMD ["serve"]
