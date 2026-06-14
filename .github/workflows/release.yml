@@ -50,14 +50,14 @@ jobs:
             -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" \
             -o polka-desktop-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/polka-desktop
 
-      - name: Upload to release
-        uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: bin-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
             polka-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
             polka-desktop-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
 
-  installers:
+  packages:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,10 +102,10 @@ jobs:
           sudo apt-get update && sudo apt-get install -y nsis
           cd packaging && makensis -DVERSION="${GITHUB_REF_NAME#v}" installer.nsi
 
-      - name: Upload to release
-        uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: packages
+          path: |
             dist/*.deb
             dist/*.rpm
             dist/polka-setup-*.exe
@@ -135,3 +135,21 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
             ghcr.io/${{ github.repository }}:latest
+
+  # Single release job: matrix/parallel jobs only upload artifacts; this
+  # job downloads them all and publishes the release once. Avoids the
+  # "Too many retries" race when many jobs hit the release API at once.
+  release:
+    needs: [binaries, packages]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          fail_on_unmatched_files: true
