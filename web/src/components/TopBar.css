@@ -9,7 +9,7 @@
 
 .topbar__row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 24px;
   height: var(--header-h);
@@ -44,7 +44,18 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  justify-self: center;
+  justify-self: start;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.topbar__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar__nav-link {
+  flex-shrink: 0;
 }
 
 .topbar__nav-link {
@@ -73,7 +84,9 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 4px 4px 4px 14px;
-  width: min(420px, 38vw);
+  width: 100%;
+  max-width: 420px;
+  justify-self: end;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
