@@ -16,6 +16,7 @@ jobs:
         include:
           - { goos: linux, goarch: amd64 }
           - { goos: linux, goarch: arm64 }
+          - { goos: linux, goarch: arm, goarm: "7" }
           - { goos: windows, goarch: amd64, ext: ".exe" }
           - { goos: darwin, goarch: amd64 }
           - { goos: darwin, goarch: arm64 }
@@ -39,6 +40,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
           CGO_ENABLED: "0"
         run: |
           go build -trimpath \
@@ -73,22 +75,27 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: Build binaries
+      - name: Build Windows installer binaries
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p dist/windows bin
-          go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o bin/polka ./cmd/polka
-          go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o bin/polka-desktop ./cmd/polka-desktop
+          mkdir -p dist/windows
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \
             -ldflags "-s -w -X main.version=$VERSION" -o dist/windows/polka.exe ./cmd/polka
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \
             -ldflags "-s -w -X main.version=$VERSION -H=windowsgui" -o dist/windows/polka-desktop.exe ./cmd/polka-desktop
 
-      - name: Build deb and rpm
+      - name: Build deb and rpm (amd64, arm64)
         run: |
           export VERSION="${GITHUB_REF_NAME#v}"
-          go run github.com/goreleaser/nfpm/v2/cmd/nfpm@latest package -f packaging/nfpm.yaml -p deb -t dist/
-          go run github.com/goreleaser/nfpm/v2/cmd/nfpm@latest package -f packaging/nfpm.yaml -p rpm -t dist/
+          mkdir -p bin
+          for arch in amd64 arm64; do
+            GOOS=linux GOARCH=$arch CGO_ENABLED=0 go build -trimpath \
+              -ldflags "-s -w -X main.version=$VERSION" -o bin/polka ./cmd/polka
+            GOOS=linux GOARCH=$arch CGO_ENABLED=0 go build -trimpath \
+              -ldflags "-s -w -X main.version=$VERSION" -o bin/polka-desktop ./cmd/polka-desktop
+            PKG_ARCH=$arch go run github.com/goreleaser/nfpm/v2/cmd/nfpm@latest package -f packaging/nfpm.yaml -p deb -t dist/
+            PKG_ARCH=$arch go run github.com/goreleaser/nfpm/v2/cmd/nfpm@latest package -f packaging/nfpm.yaml -p rpm -t dist/
+          done
 
       - name: Build Windows installer
         run: |

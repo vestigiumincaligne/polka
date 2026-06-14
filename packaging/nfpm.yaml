@@ -1,7 +1,7 @@
 # nfpm config: deb and rpm from a single spec.
 # Build: nfpm package -f packaging/nfpm.yaml -p deb|rpm -t dist/
 name: polka
-arch: amd64
+arch: ${PKG_ARCH}
 platform: linux
 version: ${VERSION}
 maintainer: pposevalnikov <noreply@github.com>

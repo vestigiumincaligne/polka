@@ -85,7 +85,8 @@ Grab the latest [release](../../releases):
 | Platform | What you get |
 |----------|--------------|
 | Windows  | `polka-setup-<version>.exe` — installer for the desktop app (server included) |
-| Linux    | `.deb` / `.rpm` packages, plus standalone binaries |
+| Linux    | `.deb` / `.rpm` packages (amd64, arm64), plus standalone binaries |
+| Raspberry Pi | 64-bit OS → `polka-linux-arm64` (or the arm64 `.deb` / Docker); 32-bit OS → `polka-linux-arm` |
 | Any      | `polka` server binary — single file, no dependencies |
 
 Run the server directly:
