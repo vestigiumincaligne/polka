@@ -6,10 +6,16 @@ import { fetchAuthorBooks, fetchSeriesBooks, fetchShelfBooks } from "../api/fetc
 import { exportUrl } from "../api/manage";
 import "./BookListPage.css";
 
-const FETCHERS = () => ({
-  author: { fetch: fetchAuthorBooks, fallbackTitle: t("scope.authors"), subtitle: t("scope.authors") },
-  series: { fetch: fetchSeriesBooks, fallbackTitle: t("scope.series"), subtitle: t("scope.series") },
-  shelf: { fetch: fetchShelfBooks, fallbackTitle: t("nav.catalog"), subtitle: t("nav.catalog") },
+const FETCHERS = {
+  author: fetchAuthorBooks,
+  series: fetchSeriesBooks,
+  shelf: fetchShelfBooks,
+};
+
+const KIND_LABEL = () => ({
+  author: t("scope.authors"),
+  series: t("scope.series"),
+  shelf: t("nav.catalog"),
 });
 
 const BookListPage = ({ kind }) => {
@@ -20,7 +26,8 @@ const BookListPage = ({ kind }) => {
   const navigate = useNavigate();
 
   const passedTitle = location.state?.title;
-  const config = FETCHERS()[kind];
+  const fetcher = FETCHERS[kind];
+  const label = KIND_LABEL()[kind];
 
   const [books, setBooks] = useState([]);
   const [resolvedTitle, setResolvedTitle] = useState("");
@@ -39,8 +46,7 @@ const BookListPage = ({ kind }) => {
     setHasMore(false);
     setNextOffset(0);
     const params = kind === "shelf" ? { shelfId: id } : { selectedItemID: id };
-    config
-      .fetch(params)
+    fetcher(params)
       .then((res) => {
         if (cancelled) return;
         setBooks(res?.titlesList ?? []);
@@ -55,7 +61,7 @@ const BookListPage = ({ kind }) => {
     return () => {
       cancelled = true;
     };
-  }, [id, config]);
+  }, [id, kind]);
 
   const sortedBooks =
     kind === "series"
@@ -89,8 +95,8 @@ const BookListPage = ({ kind }) => {
       </button>
 
       <header className="booklist-page__header">
-        <p className="booklist-page__eyebrow">{config.subtitle}</p>
-        <h1 className="booklist-page__title">{passedTitle || resolvedTitle || config.fallbackTitle}</h1>
+        <p className="booklist-page__eyebrow">{label}</p>
+        <h1 className="booklist-page__title">{passedTitle || resolvedTitle || label}</h1>
         {!loading && books.length > 0 && (
           <p className="booklist-page__count">
             {t("books.count", { n: books.length })}
