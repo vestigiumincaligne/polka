@@ -84,6 +84,7 @@ func run() error {
 		DataDir:    *dataDir,
 		LibraryDir: *libraryDir,
 		Auth:       "desktop",
+		Version:    version,
 	}
 
 	st, err := store.Open(filepath.Join(cfg.DataDir, "polka.db"))

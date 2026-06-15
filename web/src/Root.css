@@ -20,3 +20,9 @@
 .root-footer__link:hover {
   color: var(--fg);
 }
+
+.root-footer__version {
+  color: var(--fg-subtle, #999);
+  font-family: var(--mono, monospace);
+  font-size: 0.9em;
+}

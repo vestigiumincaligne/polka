@@ -24,6 +24,7 @@ const Root = () => {
   const [isDesktop, setIsDesktop] = useState(false);
   const [sync, setSync] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [version, setVersion] = useState("");
 
   const loadConfig = useCallback(() => {
     fetchConfig()
@@ -38,6 +39,7 @@ const Root = () => {
         setAuthRequired(Boolean(res.authRequired));
         setIsDesktop(Boolean(res.desktop));
         setSync(res.sync ?? null);
+        setVersion(res.version ?? "");
       })
       .catch(() => {
         setUser(null);
@@ -76,7 +78,10 @@ const Root = () => {
       />
       <main className="root-main">{children}</main>
       <footer className="root-footer">
-        <div className="container">{t("footer")}</div>
+        <div className="container">
+          {t("footer")}
+          {version && <span className="root-footer__version"> · {version}</span>}
+        </div>
       </footer>
     </>
   );
@@ -89,7 +94,7 @@ const Root = () => {
         <Route path="/lists" element={user ? layout(<ListsPage />) : <Navigate to="/" replace />} />
         <Route path="/book/:bookId" element={layout(<BookPage user={user} sync={sync} />)} />
         {(sync || isDesktop) && <Route path="/sync" element={layout(<SyncPage />)} />}
-        {/* Reader has no shared header — it brings its own minimal UI */}
+        {/* Читалка — без общей шапки, у неё свой минимальный интерфейс */}
         <Route path="/read/:bookId" element={<ReaderPage />} />
         <Route path="/author/:authorId" element={layout(<BookListPage kind="author" />)} />
         <Route path="/series/:seriesId" element={layout(<BookListPage kind="series" />)} />

@@ -177,6 +177,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"user":         nil,
 		"authRequired": s.authRequired(),
 		"desktop":      s.desktop != nil,
+		"version":      s.cfg.Version,
 	}
 	if u := s.currentUser(r); u != nil {
 		resp["user"] = userJSON(u)

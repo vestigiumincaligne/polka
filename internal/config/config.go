@@ -19,6 +19,8 @@ type Config struct {
 	// Auth: "required" — catalog only after login, "public" — open,
 	// "demo" — public showcase with ephemeral guest sessions.
 	Auth string
+	// Version is the build version (set by the binary at startup).
+	Version string
 }
 
 func env(key, def string) string {

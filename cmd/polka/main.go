@@ -74,6 +74,7 @@ func runServe(log *slog.Logger, args []string) error {
 	if err != nil {
 		return err
 	}
+	cfg.Version = version
 
 	st, err := store.Open(cfg.DBPath())
 	if err != nil {
