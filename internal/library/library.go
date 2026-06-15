@@ -1,12 +1,14 @@
-// Package library provides access to book files: archives (zip) and folders
-// under the library root, plus extraction of covers and FB2 metadata.
+// Package library — доступ к файлам книг: архивы (zip) и папки
+// внутри корня библиотеки, извлечение обложек и метаданных FB2.
 package library
 
 import (
 	"archive/zip"
+
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/bodgit/sevenzip"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,7 +22,7 @@ type Library struct {
 	root string
 
 	mu     sync.Mutex
-	covers map[int64]coverEntry // bounded cover cache
+	covers map[int64]coverEntry // ограниченный кэш обложек
 }
 
 type coverEntry struct {
@@ -37,13 +39,13 @@ func New(root string) *Library {
 	return &Library{root: root, covers: make(map[int64]coverEntry, coverCacheSize)}
 }
 
-// Open returns the contents of a book file: folder is an archive or a subfolder
-// under the library root, the file name is file + "." + ext.
+// Open возвращает содержимое файла книги: folder — архив или подпапка
+// в корне библиотеки, имя файла — file + "." + ext.
 func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {
 	name := file + "." + ext
-	// Confine to the library root: folder/file come from catalog metadata
-	// (including imported inpx files), so a poisoned "../" must not let a
-	// request read files outside the collection.
+	// Не выпускаем за корень: folder/file берутся из метаданных каталога
+	// (в т.ч. импортированного inpx), поэтому «../» не должен дать прочитать
+	// файлы вне коллекции.
 	if !pathInside(l.root, folder) || strings.ContainsAny(name, `/\`) {
 		return nil, 0, fmt.Errorf("%w: %s/%s", ErrNoFile, folder, name)
 	}
@@ -62,9 +64,40 @@ func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {
 		return f, fi.Size(), nil
 	}
 
+	// Архив с книгами. inpx часто указывает имя архива как .zip, а на
+	// диске лежит .7z (дампы Флибусты), поэтому пробуем оба расширения.
+	for _, ap := range archiveCandidates(path) {
+		if rc, size, err := openFromArchive(ap, name); err == nil {
+			return rc, size, nil
+		}
+	}
+	return nil, 0, fmt.Errorf("%w: %s in %s", ErrNoFile, name, folder)
+}
+
+// archiveCandidates возвращает возможные пути к архиву: сам путь и
+// вариант с заменой .zip↔.7z (на случай рассинхрона inpx и диска).
+func archiveCandidates(path string) []string {
+	out := []string{path}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".zip":
+		out = append(out, strings.TrimSuffix(path, filepath.Ext(path))+".7z")
+	case ".7z":
+		out = append(out, strings.TrimSuffix(path, filepath.Ext(path))+".zip")
+	}
+	return out
+}
+
+// openFromArchive достаёт файл name из архива path (zip или 7z).
+func openFromArchive(path, name string) (io.ReadCloser, int64, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, 0, err
+	}
+	if strings.EqualFold(filepath.Ext(path), ".7z") {
+		return open7z(path, name)
+	}
 	zr, err := zip.OpenReader(path)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%w: open %s: %v", ErrNoFile, folder, err)
+		return nil, 0, err
 	}
 	for _, entry := range zr.File {
 		if strings.EqualFold(entry.Name, name) {
@@ -77,11 +110,42 @@ func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {
 		}
 	}
 	zr.Close()
-	return nil, 0, fmt.Errorf("%w: %s in %s", ErrNoFile, name, folder)
+	return nil, 0, ErrNoFile
 }
 
-// pathInside reports whether root/rel stays under root after cleaning,
-// rejecting "../" traversal and absolute components.
+func open7z(path, name string) (io.ReadCloser, int64, error) {
+	zr, err := sevenzip.OpenReader(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, entry := range zr.File {
+		if strings.EqualFold(entry.Name, name) {
+			rc, err := entry.Open()
+			if err != nil {
+				zr.Close()
+				return nil, 0, err
+			}
+			return &sevenzEntryReader{rc: rc, zr: zr}, int64(entry.UncompressedSize), nil
+		}
+	}
+	zr.Close()
+	return nil, 0, ErrNoFile
+}
+
+type sevenzEntryReader struct {
+	rc io.ReadCloser
+	zr *sevenzip.ReadCloser
+}
+
+func (z *sevenzEntryReader) Read(p []byte) (int, error) { return z.rc.Read(p) }
+
+func (z *sevenzEntryReader) Close() error {
+	z.rc.Close()
+	return z.zr.Close()
+}
+
+// pathInside проверяет, что root/rel после очистки остаётся под root,
+// отсекая «../» и абсолютные компоненты.
 func pathInside(root, rel string) bool {
 	full := filepath.Join(root, filepath.FromSlash(rel))
 	r, err := filepath.Rel(root, full)
@@ -103,13 +167,13 @@ func (z *zipEntryReader) Close() error {
 	return z.zr.Close()
 }
 
-// Cover returns the book cover (for fb2), with an in-memory cache.
+// Cover возвращает обложку книги (для fb2), с кэшем в памяти.
 func (l *Library) Cover(bookID int64, folder, file, ext string) ([]byte, string, error) {
 	l.mu.Lock()
 	if c, ok := l.covers[bookID]; ok {
 		l.mu.Unlock()
 		if c.data == nil {
-			return nil, "", ErrNoFile // negative cache
+			return nil, "", ErrNoFile // отрицательный кэш
 		}
 		return c.data, c.mime, nil
 	}
@@ -119,7 +183,7 @@ func (l *Library) Cover(bookID int64, folder, file, ext string) ([]byte, string,
 
 	l.mu.Lock()
 	if len(l.covers) >= coverCacheSize {
-		// simple eviction: drop the whole cache
+		// простое вытеснение: сбрасываем кэш целиком
 		l.covers = make(map[int64]coverEntry, coverCacheSize)
 	}
 	l.covers[bookID] = coverEntry{data: data, mime: mime}
@@ -165,7 +229,7 @@ func (l *Library) extractCover(folder, file, ext string) ([]byte, string, error)
 	return nil, "", ErrNoFile
 }
 
-// Text converts a book (fb2 or txt) into HTML chapters for online reading.
+// Text конвертирует книгу (fb2 или txt) в HTML-главы для онлайн-чтения.
 func (l *Library) Text(folder, file, ext string, imgURL func(string) string) (*FB2Text, error) {
 	rc, _, err := l.Open(folder, file, ext)
 	if err != nil {
@@ -187,7 +251,7 @@ func (l *Library) Text(folder, file, ext string, imgURL func(string) string) (*F
 	return nil, ErrNoFile
 }
 
-// Binary extracts an embedded file (illustration) from an FB2 by id.
+// Binary достаёт вложенный файл (иллюстрацию) из FB2 по id.
 func (l *Library) Binary(folder, file, ext, id string) ([]byte, string, error) {
 	switch {
 	case strings.EqualFold(ext, "fb2"):
@@ -212,7 +276,7 @@ func (l *Library) Binary(folder, file, ext, id string) ([]byte, string, error) {
 	return nil, "", ErrNoFile
 }
 
-// Meta extracts FB2 metadata (annotation, publication info) without the cover.
+// Meta извлекает метаданные FB2 (аннотация, выходные данные) без обложки.
 func (l *Library) Meta(folder, file, ext string) (*FB2Meta, error) {
 	if !strings.EqualFold(ext, "fb2") {
 		return nil, ErrNoFile

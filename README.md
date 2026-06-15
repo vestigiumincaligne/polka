@@ -124,6 +124,10 @@ mounted or NFS collection) straight from the web UI — paste its path in
 *Manage → Import* instead of uploading. The book archives are looked up
 under `--library-dir`.
 
+Book files may sit in plain folders or inside **ZIP or 7z archives** (the
+usual Flibusta layout, e.g. `f.fb2-…​.7z`) — Polka reads them directly, no
+unpacking needed.
+
 Hundreds of thousands of records import in about a minute. Re-importing
 replaces the catalog but **never touches user data** — accounts, progress,
 ratings and lists live in a separate database and survive re-imports.
