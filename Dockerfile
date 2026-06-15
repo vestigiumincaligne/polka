@@ -18,7 +18,9 @@ RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist ./web/dist
 ARG VERSION=docker
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /polka ./cmd/polka
+# -tags nodynamic: decode JPEG XL covers via the pure-Go wazero backend
+# (no purego/CGO), so the build stays CGO-free across all targets.
+RUN CGO_ENABLED=0 go build -trimpath -tags nodynamic -ldflags "-s -w -X main.version=${VERSION}" -o /polka ./cmd/polka
 
 # --- Runtime ---
 FROM alpine:3.21

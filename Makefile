@@ -3,6 +3,10 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
+# nodynamic: decode JPEG XL covers via the pure-Go wazero backend (no
+# purego/CGO), so every target stays CGO-free.
+export GOFLAGS := -tags=nodynamic
+
 all: build
 
 web:

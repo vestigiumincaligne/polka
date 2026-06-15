@@ -8,6 +8,12 @@ permissions:
   contents: write
   packages: write
 
+# nodynamic: JPEG XL covers decode via the pure-Go wazero backend (no
+# purego/CGO), keeping every cross-build CGO-free. The Docker job builds
+# from the Dockerfile, which sets the tag itself.
+env:
+  GOFLAGS: -tags=nodynamic
+
 jobs:
   binaries:
     runs-on: ubuntu-latest

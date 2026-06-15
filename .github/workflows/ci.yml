@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# nodynamic: JPEG XL covers decode via the pure-Go wazero backend (no
+# purego/CGO), keeping the build CGO-free on every target.
+env:
+  GOFLAGS: -tags=nodynamic
+
 jobs:
   build:
     runs-on: ubuntu-latest

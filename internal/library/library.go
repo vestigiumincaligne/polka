@@ -347,6 +347,8 @@ func sniffImageMime(d []byte) string {
 		return "image/gif"
 	case len(d) >= 12 && string(d[:4]) == "RIFF" && string(d[8:12]) == "WEBP":
 		return "image/webp"
+	case isJXL(d):
+		return "image/jxl"
 	}
 	return "image/jpeg"
 }
@@ -413,6 +415,7 @@ func (l *Library) extractCover(folder, file, ext string) ([]byte, string, error)
 	// Cheaper than unpacking the book for its embedded cover, and it
 	// covers books that have no embedded cover at all.
 	if data, mime, ok := l.sidecarCover(folder, file); ok {
+		data, mime = normalizeCover(data, mime)
 		return data, mime, nil
 	}
 	switch {
@@ -426,7 +429,8 @@ func (l *Library) extractCover(folder, file, ext string) ([]byte, string, error)
 		if err != nil || len(meta.Cover) == 0 {
 			return nil, "", ErrNoFile
 		}
-		return meta.Cover, meta.CoverMime, nil
+		data, mime := normalizeCover(meta.Cover, meta.CoverMime)
+		return data, mime, nil
 
 	case strings.EqualFold(ext, "epub"):
 		rc, _, err := l.Open(folder, file, ext)
@@ -443,6 +447,7 @@ func (l *Library) extractCover(folder, file, ext string) ([]byte, string, error)
 		if err != nil {
 			return nil, "", ErrNoFile
 		}
+		data, mime = normalizeCover(data, mime)
 		return data, mime, nil
 	}
 	return nil, "", ErrNoFile
