@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -62,8 +63,17 @@ type opdsEntry struct {
 }
 
 // opdsAuth — Basic authentication with a browser fallback to cookies.
+// opdsEnabled — the admin can switch the OPDS catalog off.
+func (s *Server) opdsEnabled(r *http.Request) bool {
+	return s.users.GetSetting(r.Context(), "opds.enabled", "1") == "1"
+}
+
 func (s *Server) opdsAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.opdsEnabled(r) {
+			http.NotFound(w, r)
+			return
+		}
 		if s.authRequired() && s.currentUser(r) == nil {
 			w.Header().Set("WWW-Authenticate", `Basic realm="Polka", charset="UTF-8"`)
 			http.Error(w, "authentication required", http.StatusUnauthorized)
@@ -183,14 +193,18 @@ func (s *Server) handleOpdsRoot(w http.ResponseWriter, r *http.Request) {
 	feed.Links = append(feed.Links, opdsLink{Rel: "self", Href: "/opds", Type: opdsNavType})
 
 	lang := reqLang(r)
-	entries := []struct{ id, title, sub, href string }{
-		{"new", tr(lang, "opds.new"), tr(lang, "opds.new.sub"), "/opds/new"},
-		{"genres", tr(lang, "opds.genres"), tr(lang, "opds.genres.sub"), "/opds/genres"},
+	entries := []struct {
+		id, title, sub, href, typ string
+	}{
+		{"new", tr(lang, "opds.new"), tr(lang, "opds.new.sub"), "/opds/new", opdsAcqType},
+		{"authors", tr(lang, "opds.authors"), tr(lang, "opds.authors.sub"), "/opds/authors", opdsNavType},
+		{"series", tr(lang, "opds.series"), tr(lang, "opds.series.sub"), "/opds/series", opdsNavType},
+		{"genres", tr(lang, "opds.genres"), tr(lang, "opds.genres.sub"), "/opds/genres", opdsNavType},
 	}
 	if s.currentUser(r) != nil {
-		entries = append(entries, struct{ id, title, sub, href string }{
-			"reading", tr(lang, "opds.reading"), tr(lang, "opds.reading.sub"), "/opds/reading",
-		})
+		entries = append(entries, struct {
+			id, title, sub, href, typ string
+		}{"reading", tr(lang, "opds.reading"), tr(lang, "opds.reading.sub"), "/opds/reading", opdsAcqType})
 	}
 	for _, e := range entries {
 		feed.Entries = append(feed.Entries, opdsEntry{
@@ -198,7 +212,7 @@ func (s *Server) handleOpdsRoot(w http.ResponseWriter, r *http.Request) {
 			ID:      "urn:polka:nav:" + e.id,
 			Updated: now,
 			Content: &opdsContent{Type: "text", Text: e.sub},
-			Links:   []opdsLink{{Href: e.href, Type: opdsAcqType}},
+			Links:   []opdsLink{{Href: e.href, Type: e.typ}},
 		})
 	}
 	s.writeFeed(w, feed)
@@ -327,4 +341,157 @@ func (s *Server) handleOpdsReading(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeFeed(w, s.acquisitionFeed("urn:polka:reading", tr(reqLang(r), "opds.reading"), "/opds/reading", 0, books, false))
+}
+
+// --- Author and series navigation (alphabetical browse) ---
+
+// opdsLetters — the A–Z buckets for browsing authors/series.
+var opdsLetters = []string{
+	"А", "Б", "В", "Г", "Д", "Е", "Ж", "З", "И", "К", "Л", "М", "Н", "О",
+	"П", "Р", "С", "Т", "У", "Ф", "Х", "Ц", "Ч", "Ш", "Щ", "Э", "Ю", "Я",
+	"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N",
+	"O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+}
+
+// letterRange returns the [lo, hi) bounds for a single-letter bucket.
+func letterRange(letter string) (lo, hi string, ok bool) {
+	rs := []rune(letter)
+	if len(rs) != 1 {
+		return "", "", false
+	}
+	return string(rs[0]), string(rs[0] + 1), true
+}
+
+// opdsLetterFeed builds the A–Z navigation feed shared by authors/series.
+func (s *Server) opdsLetterFeed(id, title, base string) *opdsFeed {
+	now := time.Now().UTC().Format(time.RFC3339)
+	feed := &opdsFeed{ID: id, Title: title}
+	feed.Links = append(feed.Links, opdsLink{Rel: "self", Href: base, Type: opdsNavType})
+	for _, l := range opdsLetters {
+		feed.Entries = append(feed.Entries, opdsEntry{
+			Title:   l,
+			ID:      id + ":" + l,
+			Updated: now,
+			Links:   []opdsLink{{Href: base + "/" + url.PathEscape(l), Type: opdsNavType}},
+		})
+	}
+	return feed
+}
+
+// GET /opds/authors — letters.
+func (s *Server) handleOpdsAuthors(w http.ResponseWriter, r *http.Request) {
+	s.writeFeed(w, s.opdsLetterFeed("urn:polka:authors", tr(reqLang(r), "opds.authors"), "/opds/authors"))
+}
+
+// GET /opds/series — letters.
+func (s *Server) handleOpdsSeriesList(w http.ResponseWriter, r *http.Request) {
+	s.writeFeed(w, s.opdsLetterFeed("urn:polka:series", tr(reqLang(r), "opds.series"), "/opds/series"))
+}
+
+const opdsBrowsePage = 60
+
+// GET /opds/authors/{letter} — authors for a letter, paginated.
+func (s *Server) handleOpdsAuthorLetter(w http.ResponseWriter, r *http.Request) {
+	letter := r.PathValue("letter")
+	lo, hi, ok := letterRange(letter)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	lang := reqLang(r)
+	page := opdsPage(r)
+	authors, err := s.st.AuthorsByPrefix(r.Context(), lo, hi, opdsBrowsePage+1, page*opdsBrowsePage)
+	if err != nil {
+		s.apiError(w, err)
+		return
+	}
+	hasMore := len(authors) > opdsBrowsePage
+	if hasMore {
+		authors = authors[:opdsBrowsePage]
+	}
+	base := "/opds/authors/" + url.PathEscape(letter)
+	now := time.Now().UTC().Format(time.RFC3339)
+	feed := &opdsFeed{ID: "urn:polka:authors:" + letter, Title: letter}
+	feed.Links = append(feed.Links, opdsLink{Rel: "self", Href: pageHref(base, page), Type: opdsNavType})
+	if hasMore {
+		feed.Links = append(feed.Links, opdsLink{Rel: "next", Href: pageHref(base, page+1), Type: opdsNavType})
+	}
+	for _, a := range authors {
+		feed.Entries = append(feed.Entries, opdsEntry{
+			Title:   a.Name,
+			ID:      fmt.Sprintf("urn:polka:author:%d", a.ID),
+			Updated: now,
+			Content: &opdsContent{Type: "text", Text: tr(lang, "opds.books", a.Books)},
+			Links:   []opdsLink{{Href: fmt.Sprintf("/opds/author/%d", a.ID), Type: opdsAcqType}},
+		})
+	}
+	s.writeFeed(w, feed)
+}
+
+// GET /opds/author/{id} — books by an author.
+func (s *Server) handleOpdsAuthor(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	books, name, err := s.st.AuthorBooks(r.Context(), id)
+	if err != nil {
+		s.apiError(w, err)
+		return
+	}
+	s.writeFeed(w, s.acquisitionFeed(fmt.Sprintf("urn:polka:author:%d", id), name, fmt.Sprintf("/opds/author/%d", id), 0, books, false))
+}
+
+// GET /opds/series/{letter} — series for a letter.
+func (s *Server) handleOpdsSeriesLetter(w http.ResponseWriter, r *http.Request) {
+	letter := r.PathValue("letter")
+	lo, hi, ok := letterRange(letter)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	lang := reqLang(r)
+	page := opdsPage(r)
+	series, err := s.st.SeriesByPrefix(r.Context(), lo, hi, opdsBrowsePage+1, page*opdsBrowsePage)
+	if err != nil {
+		s.apiError(w, err)
+		return
+	}
+	hasMore := len(series) > opdsBrowsePage
+	if hasMore {
+		series = series[:opdsBrowsePage]
+	}
+	base := "/opds/series/" + url.PathEscape(letter)
+	now := time.Now().UTC().Format(time.RFC3339)
+	feed := &opdsFeed{ID: "urn:polka:series:" + letter, Title: letter}
+	feed.Links = append(feed.Links, opdsLink{Rel: "self", Href: pageHref(base, page), Type: opdsNavType})
+	if hasMore {
+		feed.Links = append(feed.Links, opdsLink{Rel: "next", Href: pageHref(base, page+1), Type: opdsNavType})
+	}
+	for _, se := range series {
+		feed.Entries = append(feed.Entries, opdsEntry{
+			Title:   se.Title,
+			ID:      fmt.Sprintf("urn:polka:seriesbooks:%d", se.ID),
+			Updated: now,
+			Content: &opdsContent{Type: "text", Text: tr(lang, "opds.books", se.Books)},
+			Links:   []opdsLink{{Href: fmt.Sprintf("/opds/series/id/%d", se.ID), Type: opdsAcqType}},
+		})
+	}
+	s.writeFeed(w, feed)
+}
+
+// GET /opds/series/id/{id} — books in a series.
+func (s *Server) handleOpdsSeriesOne(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	books, title, err := s.st.SeriesBooks(r.Context(), id)
+	if err != nil {
+		s.apiError(w, err)
+		return
+	}
+	s.writeFeed(w, s.acquisitionFeed(fmt.Sprintf("urn:polka:seriesbooks:%d", id), title, fmt.Sprintf("/opds/series/id/%d", id), 0, books, false))
 }

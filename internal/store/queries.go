@@ -496,3 +496,54 @@ func (s *Store) BookFile(ctx context.Context, bookID int64) (*BookFile, error) {
 	}
 	return f, err
 }
+
+// AuthorsByPrefix lists authors whose last name falls in [lo, hi),
+// ordered by name — for alphabetical OPDS browsing. Uses idx_authors_name.
+func (s *Store) AuthorsByPrefix(ctx context.Context, lo, hi string, limit, offset int) ([]AuthorEntry, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT a.id,
+		       trim(a.last_name || ' ' || a.first_name || ' ' || a.middle_name),
+		       (SELECT count(*) FROM book_authors ba JOIN books b ON b.id = ba.book_id
+		        WHERE ba.author_id = a.id AND b.deleted = 0)
+		FROM authors a
+		WHERE a.last_name >= ? AND a.last_name < ?
+		ORDER BY a.last_name, a.first_name
+		LIMIT ? OFFSET ?`, lo, hi, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []AuthorEntry
+	for rows.Next() {
+		var e AuthorEntry
+		if err := rows.Scan(&e.ID, &e.Name, &e.Books); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// SeriesByPrefix lists series whose title falls in [lo, hi), ordered by title.
+func (s *Store) SeriesByPrefix(ctx context.Context, lo, hi string, limit, offset int) ([]SeriesEntry, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT s.id, s.title,
+		       (SELECT count(*) FROM books b WHERE b.series_id = s.id AND b.deleted = 0)
+		FROM series s
+		WHERE s.title >= ? AND s.title < ?
+		ORDER BY s.title
+		LIMIT ? OFFSET ?`, lo, hi, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SeriesEntry
+	for rows.Next() {
+		var e SeriesEntry
+		if err := rows.Scan(&e.ID, &e.Title, &e.Books); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}

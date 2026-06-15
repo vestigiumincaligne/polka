@@ -98,6 +98,8 @@ const AdminLibraryPage = () => {
   const [enrichment, setEnrichment] = useState(null);
   const [similar, setSimilar] = useState(null);
   const [tastediveKey, setTastediveKey] = useState("");
+  const [opdsEnabled, setOpdsEnabled] = useState(true);
+  const [opdsCopied, setOpdsCopied] = useState(false);
 
   useEffect(() => {
     fetchSettings()
@@ -105,6 +107,7 @@ const AdminLibraryPage = () => {
         setEnrichment(res.enrichment ?? null);
         setSimilar(res.similar ?? null);
         setTastediveKey(res.tastediveKey ?? "");
+        setOpdsEnabled(res.opdsEnabled !== false);
       })
       .catch(() => setEnrichment(null));
   }, []);
@@ -134,6 +137,21 @@ const AdminLibraryPage = () => {
         alert(t("admin.tastedive.saved"));
       })
       .catch(() => alert(t("admin.tastedive.saveFail")));
+  };
+
+  const opdsUrl = `${window.location.origin}/opds`;
+
+  const toggleOpds = () => {
+    const next = !opdsEnabled;
+    setOpdsEnabled(next);
+    saveSettings({ opdsEnabled: next }).catch(() => setOpdsEnabled(!next));
+  };
+
+  const copyOpds = () => {
+    navigator.clipboard?.writeText(opdsUrl).then(() => {
+      setOpdsCopied(true);
+      setTimeout(() => setOpdsCopied(false), 1500);
+    });
   };
 
   return (
@@ -337,6 +355,26 @@ const AdminLibraryPage = () => {
             {t("admin.tastedive.save")}
           </button>
         </div>
+      </section>
+
+      <section className="library-admin__section">
+        <h2>{t("admin.opds")}</h2>
+        <p className="library-admin__hint">{t("admin.opds.hint")}</p>
+        <label className="library-admin__source library-admin__opds-toggle">
+          <input type="checkbox" checked={opdsEnabled} onChange={toggleOpds} />
+          <span className="library-admin__source-name">{t("admin.opds.toggle")}</span>
+        </label>
+        {opdsEnabled ? (
+          <div className="library-admin__opds-url">
+            <span className="library-admin__opds-label">{t("admin.opds.url")}</span>
+            <code>{opdsUrl}</code>
+            <button type="button" className="btn btn-ghost" onClick={copyOpds}>
+              {opdsCopied ? t("admin.opds.copied") : t("admin.opds.copy")}
+            </button>
+          </div>
+        ) : (
+          <p className="library-admin__hint">{t("admin.opds.off")}</p>
+        )}
       </section>
     </div>
   );

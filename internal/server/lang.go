@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Localization of server strings. Language: the X-Polka-Lang header
-// (set by the frontend), otherwise the browser's/reader's Accept-Language.
+// Локализация серверных строк. Язык: заголовок X-Polka-Lang
+// (выставляет фронтенд), иначе Accept-Language браузера/читалки.
 
 func reqLang(r *http.Request) string {
 	if l := r.Header.Get("X-Polka-Lang"); l == "en" || l == "ru" {
@@ -31,6 +31,10 @@ var serverStrings = map[string]map[string]string{
 		"reader.chapter":     "Глава %d",
 		"opds.new":           "Новинки",
 		"opds.new.sub":       "Недавно добавленные книги",
+		"opds.authors":       "По авторам",
+		"opds.authors.sub":   "Книги по авторам, по алфавиту",
+		"opds.series":        "По сериям",
+		"opds.series.sub":    "Книги по сериям, по алфавиту",
 		"opds.genres":        "По жанрам",
 		"opds.genres.sub":    "Книги по жанрам",
 		"opds.reading":       "Читаю сейчас",
@@ -55,6 +59,10 @@ var serverStrings = map[string]map[string]string{
 		"reader.chapter":     "Chapter %d",
 		"opds.new":           "New books",
 		"opds.new.sub":       "Recently added books",
+		"opds.authors":       "By author",
+		"opds.authors.sub":   "Books by author, alphabetical",
+		"opds.series":        "By series",
+		"opds.series.sub":    "Books by series, alphabetical",
 		"opds.genres":        "By genre",
 		"opds.genres.sub":    "Books by genre",
 		"opds.reading":       "Reading now",

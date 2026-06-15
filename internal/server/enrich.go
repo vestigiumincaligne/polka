@@ -47,6 +47,7 @@ func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
 			"tastedive": cfg.TasteDive,
 		},
 		"tastediveKey": cfg.TasteDiveKey,
+		"opdsEnabled":  s.opdsEnabled(r),
 	})
 }
 
@@ -55,6 +56,7 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		Enrichment   map[string]bool `json:"enrichment"`
 		Similar      map[string]bool `json:"similar"`
 		TasteDiveKey *string         `json:"tastediveKey"`
+		OpdsEnabled  *bool           `json:"opdsEnabled"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
 		http.Error(w, "invalid body", http.StatusBadRequest)
@@ -84,6 +86,12 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.TasteDiveKey != nil {
 		if err := s.users.SetSetting(r.Context(), "tastedive_key", strings.TrimSpace(*req.TasteDiveKey)); err != nil {
+			s.apiError(w, err)
+			return
+		}
+	}
+	if req.OpdsEnabled != nil {
+		if err := s.users.SetSetting(r.Context(), "opds.enabled", boolVal(*req.OpdsEnabled)); err != nil {
 			s.apiError(w, err)
 			return
 		}

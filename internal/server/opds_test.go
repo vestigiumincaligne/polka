@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -22,7 +24,7 @@ const opdsFB2 = `<?xml version="1.0" encoding="UTF-8"?>
 func TestOpdsCatalog(t *testing.T) {
 	ts, client, _ := newManageServer(t)
 
-	// A book in the library
+	// Книга в библиотеке
 	resp := uploadFiles(t, client, ts.URL+"/admin/books/upload", map[string][]byte{
 		"voyna.fb2": []byte(opdsFB2),
 	}, nil)
@@ -30,7 +32,7 @@ func TestOpdsCatalog(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&up)
 	resp.Body.Close()
 
-	// Without authentication — 401 with a Basic challenge
+	// Без аутентификации — 401 с приглашением Basic
 	plain := &http.Client{}
 	resp, _ = plain.Get(ts.URL + "/opds")
 	resp.Body.Close()
@@ -40,7 +42,7 @@ func TestOpdsCatalog(t *testing.T) {
 
 	get := func(path string) string {
 		req, _ := http.NewRequest(http.MethodGet, ts.URL+path, nil)
-		req.Header.Set("Accept-Language", "ru") // feed titles asserted in Russian
+		req.Header.Set("Accept-Language", "ru") // заголовки фидов проверяются по-русски
 		req.SetBasicAuth("admin", "secret123")
 		resp, err := plain.Do(req)
 		if err != nil {
@@ -54,7 +56,7 @@ func TestOpdsCatalog(t *testing.T) {
 		return string(body)
 	}
 
-	// Root: navigation
+	// Корень: навигация
 	root := get("/opds")
 	for _, want := range []string{"<feed", "Новинки", "/opds/new", "/opds/genres", "Читаю сейчас"} {
 		if !strings.Contains(root, want) {
@@ -62,7 +64,7 @@ func TestOpdsCatalog(t *testing.T) {
 		}
 	}
 
-	// New arrivals: a book with download and cover links
+	// Новинки: книга с ссылками на скачивание и обложку
 	news := get("/opds/new")
 	for _, want := range []string{
 		"Война и мир",
@@ -76,7 +78,7 @@ func TestOpdsCatalog(t *testing.T) {
 		}
 	}
 
-	// Genres and books of a genre
+	// Жанры и книги жанра
 	genresFeed := get("/opds/genres")
 	if !strings.Contains(genresFeed, "Классическая проза") || !strings.Contains(genresFeed, "/opds/genre/prose_classic") {
 		t.Errorf("genres feed: %s", genresFeed[:min(len(genresFeed), 500)])
@@ -86,13 +88,13 @@ func TestOpdsCatalog(t *testing.T) {
 		t.Error("genre feed missing book")
 	}
 
-	// Search
+	// Поиск
 	searchFeed := get("/opds/search?q=толстой")
 	if !strings.Contains(searchFeed, "Война и мир") {
 		t.Error("search feed missing book")
 	}
 
-	// Download with Basic authentication (the way readers do it)
+	// Скачивание с Basic-аутентификацией (как делают читалки)
 	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/Images/fb2/"+itoa64(up["results"][0].BookID), nil)
 	req.SetBasicAuth("admin", "secret123")
 	resp, err := plain.Do(req)
@@ -116,4 +118,63 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func TestOpdsAuthorsSeriesAndToggle(t *testing.T) {
+	ts, client, _ := newManageServer(t)
+
+	resp := uploadFiles(t, client, ts.URL+"/admin/books/upload", map[string][]byte{
+		"voyna.fb2": []byte(opdsFB2),
+	}, nil)
+	resp.Body.Close()
+
+	get := func(path string) (int, string) {
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+path, nil)
+		req.Header.Set("Accept-Language", "ru")
+		req.SetBasicAuth("admin", "secret123")
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	// Root lists author/series navigation
+	_, root := get("/opds")
+	for _, want := range []string{"По авторам", "По сериям", "/opds/authors", "/opds/series"} {
+		if !strings.Contains(root, want) {
+			t.Errorf("root feed missing %q", want)
+		}
+	}
+
+	// Author letter "Т" (opdsFB2 author last name starts with Т — Толстой)
+	code, letterFeed := get("/opds/authors/" + url.PathEscape("Т"))
+	if code != 200 || !strings.Contains(letterFeed, "/opds/author/") {
+		t.Fatalf("authors letter -> %d, body has author link: %v", code, strings.Contains(letterFeed, "/opds/author/"))
+	}
+	m := regexp.MustCompile(`/opds/author/(\d+)`).FindStringSubmatch(letterFeed)
+	if m == nil {
+		t.Fatal("no author id in letter feed")
+	}
+	_, authorBooks := get("/opds/author/" + m[1])
+	if !strings.Contains(authorBooks, "opds-spec.org/acquisition") {
+		t.Error("author feed has no acquisition links")
+	}
+
+	// Letters are valid OPDS navigation
+	if code, _ := get("/opds/series"); code != 200 {
+		t.Errorf("series letters -> %d", code)
+	}
+
+	// Toggle off -> 404, on -> 200 (client is an authed admin session)
+	postJSON(t, client, ts.URL+"/admin/settings", map[string]any{"opdsEnabled": false}).Body.Close()
+	if code, _ := get("/opds"); code != 404 {
+		t.Errorf("opds after disable -> %d, want 404", code)
+	}
+	postJSON(t, client, ts.URL+"/admin/settings", map[string]any{"opdsEnabled": true}).Body.Close()
+	if code, _ := get("/opds"); code != 200 {
+		t.Errorf("opds after enable -> %d, want 200", code)
+	}
 }

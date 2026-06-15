@@ -137,10 +137,12 @@ app window on Linux) and can work two ways:
 
 ## OPDS
 
-Point your reading app at `http://your-server:12791/opds`. Authentication is
-HTTP Basic with your Polka account. New books, browse by genre, search, and a
-personal "Reading now" feed are included; book downloads work in fb2, zip,
-epub, and pdf.
+Point your reading app at `http://your-server:12791/opds` — no converting or
+copying files, the books open straight on the device. Authentication is HTTP
+Basic with your Polka account. The catalog has new books, **browse by author,
+by series, and by genre** (alphabetical), search, and a personal "Reading now"
+feed; downloads work in fb2, zip, epub, and pdf. The admin can turn OPDS on or
+off and copy the connection address in *Manage → OPDS*.
 
 ## Configuration
 
