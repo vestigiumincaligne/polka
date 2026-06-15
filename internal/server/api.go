@@ -403,6 +403,7 @@ func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
 	}
 	data, mime, err := s.lib.Cover(f.ID, f.Folder, f.File, f.Ext)
 	if err != nil {
+		s.log.Info("no cover", "book", f.ID, "folder", f.Folder, "file", f.File, "error", err)
 		s.apiError(w, err)
 		return
 	}

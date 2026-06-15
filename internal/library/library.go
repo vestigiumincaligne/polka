@@ -215,6 +215,22 @@ func (l *Library) sidecarCover(folder, file string) ([]byte, string, bool) {
 	return nil, "", false
 }
 
+// sniffImageMime определяет MIME картинки по сигнатуре (covers/ хранит
+// обложки без расширения); по умолчанию — JPEG (формат Флибусты).
+func sniffImageMime(d []byte) string {
+	switch {
+	case len(d) >= 3 && d[0] == 0xFF && d[1] == 0xD8 && d[2] == 0xFF:
+		return "image/jpeg"
+	case len(d) >= 8 && string(d[:8]) == "\x89PNG\r\n\x1a\n":
+		return "image/png"
+	case len(d) >= 6 && (string(d[:6]) == "GIF87a" || string(d[:6]) == "GIF89a"):
+		return "image/gif"
+	case len(d) >= 12 && string(d[:4]) == "RIFF" && string(d[8:12]) == "WEBP":
+		return "image/webp"
+	}
+	return "image/jpeg"
+}
+
 var coverImageMime = map[string]string{
 	".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
 	".gif": "image/gif", ".webp": "image/webp", ".jxl": "image/jxl",
@@ -226,10 +242,8 @@ func coverArchiveEntry(archivePath, bookid string) ([]byte, string, bool) {
 		return nil, "", false
 	}
 	match := func(name string, open func() (io.ReadCloser, error)) ([]byte, string, bool) {
-		mime, ok := coverImageMime[strings.ToLower(filepath.Ext(name))]
-		if !ok {
-			return nil, "", false
-		}
+		// Обложки в covers-архиве названы по id книги, часто БЕЗ расширения
+		// (например "294098"), поэтому тип определяем по содержимому.
 		if !strings.EqualFold(strings.TrimSuffix(filepath.Base(name), filepath.Ext(name)), bookid) {
 			return nil, "", false
 		}
@@ -239,8 +253,12 @@ func coverArchiveEntry(archivePath, bookid string) ([]byte, string, bool) {
 		}
 		defer rc.Close()
 		data, err := io.ReadAll(rc)
-		if err != nil {
+		if err != nil || len(data) == 0 {
 			return nil, "", false
+		}
+		mime := coverImageMime[strings.ToLower(filepath.Ext(name))]
+		if mime == "" {
+			mime = sniffImageMime(data)
 		}
 		return data, mime, true
 	}

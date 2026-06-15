@@ -111,6 +111,7 @@ func (s *Server) handleReadMeta(w http.ResponseWriter, r *http.Request) {
 
 	text, err := s.bookText(r, bookID)
 	if err != nil {
+		s.log.Warn("read book failed", "book", bookID, "error", err)
 		s.apiError(w, err)
 		return
 	}
@@ -151,6 +152,7 @@ func (s *Server) handleReadChapter(w http.ResponseWriter, r *http.Request) {
 	}
 	text, err := s.bookText(r, bookID)
 	if err != nil {
+		s.log.Warn("read book failed", "book", bookID, "error", err)
 		s.apiError(w, err)
 		return
 	}
