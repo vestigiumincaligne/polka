@@ -81,7 +81,10 @@ func TestSendBookByEmail(t *testing.T) {
 	bookID := up["results"][0].BookID
 
 	send := func() int {
-		r, _ := client.Post(ts.URL+"/api/v1/books/"+itoa64(bookID)+"/send", "application/json", nil)
+		r, err := client.Post(ts.URL+"/api/v1/books/"+itoa64(bookID)+"/send", "application/json", nil)
+		if err != nil {
+			t.Fatalf("send request: %v", err)
+		}
 		defer r.Body.Close()
 		return r.StatusCode
 	}
