@@ -33,7 +33,11 @@ mobile reading app.
   External ratings (LiveLib, Google Books, Open Library) can be enabled per
   source by the admin.
 - **OPDS catalog.** Connect Moon+ Reader, KOReader, FBReader, or any other
-  OPDS-capable app: new books, genres, your "reading now" shelf, and search.
+  OPDS-capable app: new books, browse by author, series and genre, your
+  "reading now" shelf, and search.
+- **Send to your e-reader.** Configure SMTP once and e-mail any book straight
+  to your Kindle / Kobo / PocketBook from its page (the SMTP password is stored
+  encrypted).
 - **Multi-user.** Accounts with admin/reader roles, per-user progress, lists
   and ratings. Or run it fully open on a trusted home network.
 - **Add books from the browser.** Upload fb2 / epub / pdf / djvu / txt / mobi;

@@ -250,3 +250,26 @@
   font-weight: 600;
   word-break: break-all;
 }
+
+.library-admin__smtp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+  max-width: 620px;
+}
+
+.library-admin__smtp-grid input,
+.library-admin__smtp-grid select {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .library-admin__smtp-grid { grid-template-columns: 1fr; }
+}

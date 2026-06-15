@@ -10,6 +10,7 @@ import { deleteBook } from "../api/manage";
 import { fetchProgress } from "../api/reader";
 import { rateBook } from "../api/ratings";
 import { toggleWishlist } from "../api/lists";
+import { fetchReaderEmail, setReaderEmail, sendBook } from "../api/send";
 import ListsMenu from "../components/ListsMenu";
 import "./BookPage.css";
 
@@ -23,7 +24,7 @@ const BookPage = ({ user, sync }) => {
   const { bookId } = useParams();
   const navigate = useNavigate();
 
-  // Offline cache (desktop client sync mode only)
+  // Офлайн-кэш (только в режиме синхронизации десктоп-клиента)
   const [isOffline, setIsOffline] = useState(false);
   const [offlineBusy, setOfflineBusy] = useState(false);
 
@@ -68,6 +69,9 @@ const BookPage = ({ user, sync }) => {
   const [enrichmentLoading, setEnrichmentLoading] = useState(false);
   const [similar, setSimilar] = useState(null); // {similar: [], external: []}
   const [readProgress, setReadProgress] = useState(0);
+  const [smtpReady, setSmtpReady] = useState(false);
+  const [readerEmail, setReaderEmailState] = useState("");
+  const [sendState, setSendState] = useState("idle");
   const [polkaRating, setPolkaRating] = useState(null); // {rating, count}
   const [userRating, setUserRating] = useState(0);
   const [ratingBusy, setRatingBusy] = useState(false);
@@ -93,6 +97,37 @@ const BookPage = ({ user, sync }) => {
       .finally(() => setWishBusy(false));
   };
 
+  const sendToReader = () => {
+    if (sendState === "sending") return;
+    let email = readerEmail;
+    if (!email) {
+      email = (window.prompt(t("book.send.askEmail")) || "").trim();
+      if (!email) return;
+    }
+    setSendState("sending");
+    const go = () =>
+      sendBook(bookId)
+        .then(() => {
+          setSendState("sent");
+          setTimeout(() => setSendState("idle"), 2500);
+        })
+        .catch(() => {
+          setSendState("idle");
+          alert(t("book.send.fail"));
+        });
+    if (email !== readerEmail) {
+      setReaderEmail(email)
+        .then(() => setReaderEmailState(email))
+        .then(go)
+        .catch(() => {
+          setSendState("idle");
+          alert(t("book.send.fail"));
+        });
+    } else {
+      go();
+    }
+  };
+
   const submitRating = (value) => {
     if (ratingBusy) return;
     setRatingBusy(true);
@@ -111,6 +146,13 @@ const BookPage = ({ user, sync }) => {
     setListIds([]);
     fetchProgress(bookId)
       .then((p) => !cancelled && p?.stored && setReadProgress(Number(p.progress ?? 0)))
+      .catch(() => {});
+    fetchReaderEmail()
+      .then((res) => {
+        if (cancelled) return;
+        setSmtpReady(Boolean(res?.smtpReady));
+        setReaderEmailState(res?.email ?? "");
+      })
       .catch(() => {});
     import("../api/lists").then(({ fetchLists }) =>
       fetchLists()
@@ -368,6 +410,21 @@ const BookPage = ({ user, sync }) => {
             <a className={`btn ${Ext === ".fb2" || Ext === ".pdf" ? "btn-ghost" : "btn-primary"}`} href={api.fb2Url(BookID)}>
               {t("book.download", { ext: Ext || ".fb2" })}
             </a>
+            {smtpReady && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={sendToReader}
+                disabled={sendState === "sending"}
+                title={t("book.send.hint")}
+              >
+                {sendState === "sent"
+                  ? t("book.send.done")
+                  : sendState === "sending"
+                    ? t("book.send.sending")
+                    : t("book.send")}
+              </button>
+            )}
             <button
               type="button"
               className={`btn btn-ghost book-page__wish ${inWishlist ? "is-on" : ""}`}

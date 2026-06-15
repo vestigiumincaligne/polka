@@ -35,6 +35,7 @@ type Server struct {
 
 	loginLimiter *rateLimiter // throttle password guessing
 	guestLimiter *rateLimiter // throttle demo guest creation
+	secret       []byte       // key for secrets at rest (SMTP password)
 }
 
 func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Library, users *auth.Service, sync *syncer.Syncer, webFS fs.FS) *http.Server {
@@ -44,6 +45,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		// 10 failed logins / 5 min / IP; 20 new guests / min / IP.
 		loginLimiter: newRateLimiter(10, 5*time.Minute),
 		guestLimiter: newRateLimiter(20, time.Minute),
+		secret:       loadSecretKey(cfg.DataDir),
 	}
 	if cfg.Auth == "desktop" {
 		owner, err := users.EnsureLogin(context.Background(), "desktop", "Владелец", auth.RoleAdmin)
@@ -160,6 +162,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		if !s.demoMode() {
 			mux.HandleFunc("GET /admin/settings", s.adminOnly(s.handleSettingsGet))
 			mux.HandleFunc("POST /admin/settings", s.adminOnly(s.handleSettingsSave))
+			mux.HandleFunc("POST /admin/smtp/test", s.adminOnly(s.handleSmtpTest))
 		}
 
 		// User data state for desktop clients
@@ -169,6 +172,11 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 
 	// Ratings are local in every mode (synchronized via state)
 	mux.HandleFunc("POST /api/v1/books/{id}/rating", s.protected(s.maybeSyncAfter(s.handleRateBook)))
+
+	// Send a book to an e-reader by email
+	mux.HandleFunc("GET /api/v1/me/reader-email", s.protected(s.handleReaderEmail))
+	mux.HandleFunc("POST /api/v1/me/reader-email", s.protected(s.handleReaderEmail))
+	mux.HandleFunc("POST /api/v1/books/{id}/send", s.protected(s.handleSendBook))
 
 	// Reading lists are local in every mode
 	mux.HandleFunc("GET /api/v1/lists", s.protected(s.handleListsGet))

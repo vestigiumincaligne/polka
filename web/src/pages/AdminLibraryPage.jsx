@@ -1,7 +1,7 @@
 import { t } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchSettings, importInpx, importStatus, saveSettings, uploadBooks } from "../api/manage";
+import { fetchSettings, importInpx, importStatus, saveSettings, testSmtp, uploadBooks } from "../api/manage";
 import "./AdminLibraryPage.css";
 
 const ENRICH_SOURCES = () => [
@@ -100,6 +100,9 @@ const AdminLibraryPage = () => {
   const [tastediveKey, setTastediveKey] = useState("");
   const [opdsEnabled, setOpdsEnabled] = useState(true);
   const [opdsCopied, setOpdsCopied] = useState(false);
+  const [smtp, setSmtp] = useState(null);
+  const [smtpPwd, setSmtpPwd] = useState("");
+  const [smtpMsg, setSmtpMsg] = useState(null);
 
   useEffect(() => {
     fetchSettings()
@@ -108,6 +111,7 @@ const AdminLibraryPage = () => {
         setSimilar(res.similar ?? null);
         setTastediveKey(res.tastediveKey ?? "");
         setOpdsEnabled(res.opdsEnabled !== false);
+        setSmtp(res.smtp ?? { security: "starttls", port: 587 });
       })
       .catch(() => setEnrichment(null));
   }, []);
@@ -152,6 +156,30 @@ const AdminLibraryPage = () => {
       setOpdsCopied(true);
       setTimeout(() => setOpdsCopied(false), 1500);
     });
+  };
+
+  const smtpField = (key, value) => setSmtp((prev) => ({ ...prev, [key]: value }));
+
+  const saveSmtp = () => {
+    const payload = { ...smtp, port: Number(smtp.port) || 0 };
+    if (smtpPwd) payload.password = smtpPwd;
+    setSmtpMsg(null);
+    saveSettings({ smtp: payload })
+      .then((res) => {
+        setSmtp(res.smtp ?? smtp);
+        setSmtpPwd("");
+        setSmtpMsg({ ok: true, text: t("admin.smtp.saved") });
+      })
+      .catch(() => setSmtpMsg({ ok: false, text: t("admin.smtp.saveFail") }));
+  };
+
+  const checkSmtp = () => {
+    setSmtpMsg({ ok: true, text: t("admin.smtp.checking") });
+    testSmtp()
+      .then((res) =>
+        setSmtpMsg(res.ok ? { ok: true, text: t("admin.smtp.ok") } : { ok: false, text: res.error || t("admin.smtp.checkFail") })
+      )
+      .catch(() => setSmtpMsg({ ok: false, text: t("admin.smtp.checkFail") }));
   };
 
   return (
@@ -374,6 +402,43 @@ const AdminLibraryPage = () => {
           </div>
         ) : (
           <p className="library-admin__hint">{t("admin.opds.off")}</p>
+        )}
+      </section>
+
+      <section className="library-admin__section">
+        <h2>{t("admin.smtp")}</h2>
+        <p className="library-admin__hint">{t("admin.smtp.hint")}</p>
+        {smtp && (
+          <>
+            <label className="library-admin__source library-admin__opds-toggle">
+              <input type="checkbox" checked={Boolean(smtp.enabled)} onChange={(e) => smtpField("enabled", e.target.checked)} />
+              <span className="library-admin__source-name">{t("admin.smtp.enable")}</span>
+            </label>
+            <div className="library-admin__smtp-grid">
+              <input placeholder={t("admin.smtp.host")} value={smtp.host || ""} onChange={(e) => smtpField("host", e.target.value)} />
+              <input placeholder={t("admin.smtp.port")} value={smtp.port || ""} onChange={(e) => smtpField("port", e.target.value)} style={{ maxWidth: 110 }} />
+              <select value={smtp.security || "starttls"} onChange={(e) => smtpField("security", e.target.value)}>
+                <option value="starttls">STARTTLS (587)</option>
+                <option value="tls">SSL/TLS (465)</option>
+                <option value="none">{t("admin.smtp.none")}</option>
+              </select>
+              <input placeholder={t("admin.smtp.user")} value={smtp.user || ""} onChange={(e) => smtpField("user", e.target.value)} />
+              <input
+                type="password"
+                placeholder={smtp.hasPassword ? t("admin.smtp.pwdSet") : t("admin.smtp.pwd")}
+                value={smtpPwd}
+                onChange={(e) => setSmtpPwd(e.target.value)}
+              />
+              <input placeholder={t("admin.smtp.from")} value={smtp.from || ""} onChange={(e) => smtpField("from", e.target.value)} />
+            </div>
+            <div className="library-admin__key-row">
+              <button type="button" className="btn btn-primary" onClick={saveSmtp}>{t("admin.smtp.save")}</button>
+              <button type="button" className="btn btn-ghost" onClick={checkSmtp}>{t("admin.smtp.check")}</button>
+              {smtpMsg && (
+                <span className={smtpMsg.ok ? "library-admin__ok" : "library-admin__error"}>{smtpMsg.text}</span>
+              )}
+            </div>
+          </>
         )}
       </section>
     </div>

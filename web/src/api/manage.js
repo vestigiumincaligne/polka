@@ -51,6 +51,8 @@ export const exportUrl = (ids) => api.buildUrl(`Images/export?ids=${ids.join(","
 
 export const fetchSettings = () => api.getJson("admin/settings");
 
+export const testSmtp = () => post("admin/smtp/test");
+
 export const saveSettings = async (settings) => {
   const res = await fetch(api.buildUrl("admin/settings"), {
     method: "POST",
