@@ -33,3 +33,23 @@ func TestOpen7zWithZipName(t *testing.T) {
 }
 
 func min(a, b int) int { if a < b { return a }; return b }
+
+func TestSidecarCover(t *testing.T) {
+	root := os.Getenv("ROOT")
+	if root == "" {
+		t.Skip("set ROOT")
+	}
+	l := New(root)
+	// folder = архив книги (.zip-имя как в inpx); обложка в covers/<base>.zip
+	data, mime, err := l.Cover(339380, "f.fb2-009373-367300.zip", "339380", "fb2")
+	if err != nil {
+		t.Fatalf("sidecar cover: %v", err)
+	}
+	if len(data) == 0 || mime != "image/jpeg" {
+		t.Errorf("cover data=%d mime=%q", len(data), mime)
+	}
+	// первые байты — JPEG SOI
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		t.Errorf("not a JPEG: % x", data[:min(4, len(data))])
+	}
+}

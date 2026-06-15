@@ -195,7 +195,83 @@ func (l *Library) Cover(bookID int64, folder, file, ext string) ([]byte, string,
 	return data, mime, nil
 }
 
+// sidecarCover ищет обложку в covers/<архив>.zip|7z (раскладка Флибусты).
+func (l *Library) sidecarCover(folder, file string) ([]byte, string, bool) {
+	base := strings.TrimSuffix(filepath.Base(folder), filepath.Ext(folder))
+	if base == "" {
+		return nil, "", false
+	}
+	for _, aext := range []string{".zip", ".7z"} {
+		ap := filepath.Join(l.root, "covers", base+aext)
+		if d, m, ok := coverArchiveEntry(ap, file); ok {
+			return d, m, true
+		}
+	}
+	return nil, "", false
+}
+
+var coverImageMime = map[string]string{
+	".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+	".gif": "image/gif", ".webp": "image/webp", ".jxl": "image/jxl",
+}
+
+// coverArchiveEntry достаёт из архива обложку с именем <bookid>.<img>.
+func coverArchiveEntry(archivePath, bookid string) ([]byte, string, bool) {
+	if _, err := os.Stat(archivePath); err != nil {
+		return nil, "", false
+	}
+	match := func(name string, open func() (io.ReadCloser, error)) ([]byte, string, bool) {
+		mime, ok := coverImageMime[strings.ToLower(filepath.Ext(name))]
+		if !ok {
+			return nil, "", false
+		}
+		if !strings.EqualFold(strings.TrimSuffix(filepath.Base(name), filepath.Ext(name)), bookid) {
+			return nil, "", false
+		}
+		rc, err := open()
+		if err != nil {
+			return nil, "", false
+		}
+		defer rc.Close()
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, "", false
+		}
+		return data, mime, true
+	}
+	if strings.EqualFold(filepath.Ext(archivePath), ".7z") {
+		zr, err := sevenzip.OpenReader(archivePath)
+		if err != nil {
+			return nil, "", false
+		}
+		defer zr.Close()
+		for _, e := range zr.File {
+			if d, m, ok := match(e.Name, e.Open); ok {
+				return d, m, true
+			}
+		}
+		return nil, "", false
+	}
+	zr, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return nil, "", false
+	}
+	defer zr.Close()
+	for _, e := range zr.File {
+		if d, m, ok := match(e.Name, e.Open); ok {
+			return d, m, true
+		}
+	}
+	return nil, "", false
+}
+
 func (l *Library) extractCover(folder, file, ext string) ([]byte, string, error) {
+	// Sidecar Флибусты: covers/<имя-архива>.zip|7z → <id книги>.jpg.
+	// Дешевле, чем распаковывать книгу ради встроенной обложки, и
+	// покрывает книги без встроенной обложки.
+	if data, mime, ok := l.sidecarCover(folder, file); ok {
+		return data, mime, nil
+	}
 	switch {
 	case strings.EqualFold(ext, "fb2"):
 		rc, _, err := l.Open(folder, file, ext)
