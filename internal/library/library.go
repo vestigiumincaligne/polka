@@ -199,6 +199,11 @@ func archiveCandidates(path string) []string {
 	return out
 }
 
+// entryStem drops the extension: "794546.fb2" → "794546".
+func entryStem(name string) string {
+	return strings.TrimSuffix(name, filepath.Ext(name))
+}
+
 // openFromArchive extracts file name from archive path (zip or 7z).
 func openFromArchive(path, name string) (io.ReadCloser, int64, error) {
 	if _, err := os.Stat(path); err != nil {
@@ -211,6 +216,12 @@ func openFromArchive(path, name string) (io.ReadCloser, int64, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("not a valid zip: %v", err)
 	}
+	// Exact match takes priority; the bare id (an extensionless entry) is a
+	// fallback for optimized Flibusta dumps, where books are named by id
+	// without ".fb2". Matching against the stem (not just any prefix) keeps
+	// a cover "<id>.jpg" from being mistaken for the book.
+	stem := entryStem(name)
+	var cand *zip.File
 	names := make([]string, 0, len(zr.File))
 	for _, entry := range zr.File {
 		if strings.EqualFold(entry.Name, name) {
@@ -221,7 +232,18 @@ func openFromArchive(path, name string) (io.ReadCloser, int64, error) {
 			}
 			return &zipEntryReader{rc: rc, zr: zr}, int64(entry.UncompressedSize64), nil
 		}
+		if cand == nil && strings.EqualFold(entry.Name, stem) {
+			cand = entry
+		}
 		names = append(names, entry.Name)
+	}
+	if cand != nil {
+		rc, err := cand.Open()
+		if err != nil {
+			zr.Close()
+			return nil, 0, err
+		}
+		return &zipEntryReader{rc: rc, zr: zr}, int64(cand.UncompressedSize64), nil
 	}
 	zr.Close()
 	return nil, 0, entryNotFound(name, names)
@@ -232,6 +254,8 @@ func open7z(path, name string) (io.ReadCloser, int64, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("not a valid 7z: %v", err)
 	}
+	stem := entryStem(name)
+	var cand *sevenzip.File
 	names := make([]string, 0, len(zr.File))
 	for _, entry := range zr.File {
 		if strings.EqualFold(entry.Name, name) {
@@ -242,7 +266,18 @@ func open7z(path, name string) (io.ReadCloser, int64, error) {
 			}
 			return &sevenzEntryReader{rc: rc, zr: zr}, int64(entry.UncompressedSize), nil
 		}
+		if cand == nil && strings.EqualFold(entry.Name, stem) {
+			cand = entry
+		}
 		names = append(names, entry.Name)
+	}
+	if cand != nil {
+		rc, err := cand.Open()
+		if err != nil {
+			zr.Close()
+			return nil, 0, err
+		}
+		return &sevenzEntryReader{rc: rc, zr: zr}, int64(cand.UncompressedSize), nil
 	}
 	zr.Close()
 	return nil, 0, entryNotFound(name, names)
