@@ -78,11 +78,16 @@ func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {
 // вариант с заменой .zip↔.7z (на случай рассинхрона inpx и диска).
 func archiveCandidates(path string) []string {
 	out := []string{path}
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".zip":
-		out = append(out, strings.TrimSuffix(path, filepath.Ext(path))+".7z")
-	case ".7z":
-		out = append(out, strings.TrimSuffix(path, filepath.Ext(path))+".zip")
+	base := path
+	if e := strings.ToLower(filepath.Ext(path)); e == ".zip" || e == ".7z" {
+		base = strings.TrimSuffix(path, filepath.Ext(path))
+	}
+	// Всегда пробуем оба расширения: inpx может указывать .zip, .7z или
+	// вовсе имя без расширения, а на диске — другой вариант.
+	for _, e := range []string{".7z", ".zip"} {
+		if c := base + e; c != path {
+			out = append(out, c)
+		}
 	}
 	return out
 }
