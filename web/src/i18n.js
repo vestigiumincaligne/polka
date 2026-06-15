@@ -20,7 +20,7 @@ const ru = {
   owner: "Владелец",
   // Home
   "home.eyebrow": "Ваша домашняя библиотека",
-  "home.titleCount": "{n} книг — найдите свою",
+  "home.titleCount": { one: "{n} книга — найдите свою", few: "{n} книги — найдите свою", many: "{n} книг — найдите свою" },
   "home.title": "Найдите свою следующую книгу",
   "home.lead": "Поиск по названиям, авторам и сериям, аннотации, обложки, чтение прямо в браузере или скачивание в fb2 / zip.",
   "home.openCatalog": "Открыть каталог",
@@ -62,7 +62,7 @@ const ru = {
   "search.noAuthors": "Авторов не нашлось",
   "search.noSeries": "Серий не нашлось",
   "search.noGenres": "Жанров не нашлось",
-  "books.count": "{n} книг",
+  "books.count": { one: "{n} книга", few: "{n} книги", many: "{n} книг" },
   // Book page
   back: "← Назад",
   "book.loadError": "Книгу не удалось загрузить.",
@@ -72,8 +72,8 @@ const ru = {
   "book.rating.external": "Внешний рейтинг",
   "book.rating.none": "оценок нет",
   "book.rating.notFound": "не нашли",
-  "book.rating.count": "{n} оценок",
-  "book.rating.more": " · ещё {n} источн.",
+  "book.rating.count": { one: "{n} оценка", few: "{n} оценки", many: "{n} оценок" },
+  "book.rating.more": { one: " · ещё {n} источник", few: " · ещё {n} источника", many: " · ещё {n} источников" },
   "book.rate.yours": "Ваша оценка:",
   "book.rate.do": "Оценить:",
   "book.read": "Читать онлайн",
@@ -274,7 +274,7 @@ const en = {
   "search.aria": "Book search",
   owner: "Owner",
   "home.eyebrow": "Your home library",
-  "home.titleCount": "{n} books — find yours",
+  "home.titleCount": { one: "{n} book — find yours", other: "{n} books — find yours" },
   "home.title": "Find your next book",
   "home.lead": "Search by title, author and series; annotations, covers, reading right in the browser or downloading as fb2 / zip.",
   "home.openCatalog": "Open catalog",
@@ -315,7 +315,7 @@ const en = {
   "search.noAuthors": "No authors found",
   "search.noSeries": "No series found",
   "search.noGenres": "No genres found",
-  "books.count": "{n} books",
+  "books.count": { one: "{n} book", other: "{n} books" },
   back: "← Back",
   "book.loadError": "Failed to load the book.",
   "book.toHome": "Home",
@@ -324,8 +324,8 @@ const en = {
   "book.rating.external": "External rating",
   "book.rating.none": "no ratings",
   "book.rating.notFound": "not found",
-  "book.rating.count": "{n} ratings",
-  "book.rating.more": " · {n} more source(s)",
+  "book.rating.count": { one: "{n} rating", other: "{n} ratings" },
+  "book.rating.more": { one: " · {n} more source", other: " · {n} more sources" },
   "book.rate.yours": "Your rating:",
   "book.rate.do": "Rate:",
   "book.read": "Read online",
@@ -528,9 +528,29 @@ export const setLang = (next) => {
   window.location.reload();
 };
 
+// Plural form for a count: Russian has one/few/many, English one/other.
+// The number may arrive already formatted ("578 612"), so we keep digits.
+const pluralForm = (l, n) => {
+  const num = Math.abs(parseInt(String(n).replace(/[^\d]/g, ""), 10)) || 0;
+  if (l === "ru") {
+    const m10 = num % 10;
+    const m100 = num % 100;
+    if (m10 === 1 && m100 !== 11) return "one";
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "few";
+    return "many";
+  }
+  return num === 1 ? "one" : "other";
+};
+
 // t("key", {x: 1}) — current-language string with {x} substitution.
+// A dictionary value may be a plural object {one, few, many} / {one, other},
+// resolved by the {n} variable.
 export const t = (key, vars) => {
   let s = dictionaries[lang][key] ?? dictionaries.ru[key] ?? key;
+  if (s && typeof s === "object") {
+    const form = pluralForm(lang, vars?.n ?? vars?.count ?? 0);
+    s = s[form] ?? s.many ?? s.other ?? s.one ?? key;
+  }
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
       s = s.replaceAll(`{${k}}`, String(v));
