@@ -117,6 +117,25 @@
   color: #1b7f3b;
 }
 
+.library-admin__status--warning {
+  color: #8a5a00;
+  background: rgba(240, 173, 78, 0.15);
+}
+
+.library-admin__banner {
+  margin: 16px 0;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.library-admin__banner--warning {
+  color: #8a5a00;
+  background: rgba(240, 173, 78, 0.18);
+  border: 1px solid rgba(240, 173, 78, 0.45);
+}
+
 .library-admin__spinner {
   width: 14px;
   height: 14px;

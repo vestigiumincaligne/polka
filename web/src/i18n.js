@@ -183,6 +183,8 @@ const ru = {
   "sync.removeDevice": "Удалить с устройства",
   // Admin: library
   "admin.title": "Управление библиотекой",
+  "admin.library.empty":
+    "Каталог книг «{dir}» пуст или не существует. Если книги примонтированы в другой путь, укажите его в POLKA_LIBRARY_DIR (или --library-dir) и перезапустите — иначе книги не будут открываться и не покажутся обложки.",
   "admin.upload": "Добавить книги",
   "admin.upload.hint": "fb2, epub, pdf, djvu, txt, mobi — метаданные fb2 и epub распознаются автоматически.",
   "admin.upload.drop": "Выберите файлы или перетащите их сюда",
@@ -460,6 +462,8 @@ const en = {
   "sync.offlineEmpty": "Nothing downloaded yet. The “Offline” button on a book page saves it to this device.",
   "sync.removeDevice": "Remove from device",
   "admin.title": "Library management",
+  "admin.library.empty":
+    "The book directory “{dir}” is empty or does not exist. If your books are mounted at a different path, set it in POLKA_LIBRARY_DIR (or --library-dir) and restart — otherwise books will not open and covers won't show.",
   "admin.upload": "Add books",
   "admin.upload.hint": "fb2, epub, pdf, djvu, txt, mobi — fb2 and epub metadata is detected automatically.",
   "admin.upload.drop": "Choose files or drop them here",

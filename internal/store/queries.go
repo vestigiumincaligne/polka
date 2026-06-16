@@ -484,6 +484,28 @@ func (s *Store) BookDetails(ctx context.Context, bookID int64) (*BookDetails, er
 	return d, grows.Err()
 }
 
+// SampleFolders returns up to limit catalog folder (archive) names, to check
+// after an import that the archives actually exist on disk.
+func (s *Store) SampleFolders(ctx context.Context, limit int) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT name FROM folders
+		WHERE id IN (SELECT folder_id FROM books WHERE deleted = 0)
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) BookFile(ctx context.Context, bookID int64) (*BookFile, error) {
 	f := &BookFile{}
 	err := s.db.QueryRowContext(ctx, `

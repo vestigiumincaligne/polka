@@ -354,6 +354,7 @@ type importState struct {
 	processed int
 	stats     store.ImportStats
 	err       string
+	warning   string // non-fatal, e.g. archives not found under the library dir
 }
 
 func (st *importState) snapshot() map[string]any {
@@ -367,6 +368,7 @@ func (st *importState) snapshot() map[string]any {
 		"authors":   st.stats.Authors,
 		"series":    st.stats.Series,
 		"error":     st.err,
+		"warning":   st.warning,
 	}
 }
 
@@ -385,6 +387,7 @@ func (s *Server) handleImportInpx(w http.ResponseWriter, r *http.Request) {
 	s.imp.phase = "starting"
 	s.imp.processed = 0
 	s.imp.err = ""
+	s.imp.warning = ""
 	s.imp.stats = store.ImportStats{}
 	s.imp.mu.Unlock()
 
@@ -489,4 +492,38 @@ func (s *Server) runImport(inpxPath string, replace bool, cleanup bool) {
 
 	stats, err := importer.ImportInpx(ctx, s.log, s.st, inpxPath, setPhase)
 	finish(stats, err)
+	if err == nil {
+		s.warnIfArchivesMissing(ctx)
+	}
+}
+
+// warnIfArchivesMissing checks, on a sample of catalog folders, that the
+// archives actually live under the library dir. A common mistake: the catalog
+// is imported from an inpx (metadata only), but the archives are mounted at a
+// different path than POLKA_LIBRARY_DIR — then books "won't open" and covers
+// are missing.
+func (s *Server) warnIfArchivesMissing(ctx context.Context) {
+	if s.lib == nil {
+		return
+	}
+	folders, err := s.st.SampleFolders(ctx, 50)
+	if err != nil || len(folders) == 0 {
+		return
+	}
+	missing := 0
+	for _, f := range folders {
+		if !s.lib.HasArchive(f) {
+			missing++
+		}
+	}
+	if missing == 0 {
+		return
+	}
+	msg := fmt.Sprintf("catalog imported, but %d of %d sampled book archives were not found under the library directory %q — if your books are mounted elsewhere, set POLKA_LIBRARY_DIR to that path and restart",
+		missing, len(folders), s.cfg.LibraryDir)
+	s.log.Warn("library archives missing after import",
+		"missing", missing, "sampled", len(folders), "library_dir", s.cfg.LibraryDir)
+	s.imp.mu.Lock()
+	s.imp.warning = msg
+	s.imp.mu.Unlock()
 }

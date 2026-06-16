@@ -88,8 +88,20 @@ func runServe(log *slog.Logger, args []string) error {
 	}
 
 	lib := library.New(cfg.LibraryDir)
-	if lib == nil {
-		log.Warn("library-dir is not set: covers and downloads are disabled")
+	switch {
+	case lib == nil:
+		log.Warn("library-dir is not set: reading, covers and downloads are disabled",
+			"hint", "set POLKA_LIBRARY_DIR or --library-dir")
+	default:
+		if h := lib.Health(); !h.Exists {
+			log.Warn("library directory does not exist", "path", h.Root,
+				"hint", "mount your books there, or set POLKA_LIBRARY_DIR to where they are")
+		} else if h.Entries == 0 {
+			log.Warn("library directory is empty", "path", h.Root,
+				"hint", "book archives must live under this path; if you mounted them elsewhere, set POLKA_LIBRARY_DIR to that path")
+		} else {
+			log.Info("library directory", "path", h.Root, "entries", h.Entries)
+		}
 	}
 
 	users, err := auth.Open(filepath.Join(cfg.DataDir, "users.db"))

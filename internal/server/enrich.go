@@ -49,7 +49,26 @@ func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
 		"tastediveKey": cfg.TasteDiveKey,
 		"opdsEnabled":  s.opdsEnabled(r),
 		"smtp":         s.smtpSettings(r),
+		"library":      s.libraryStatus(),
 	})
+}
+
+// libraryStatus reports the state of the library root for the admin panel:
+// the path, whether it is set, and how many entries are visible. An empty
+// directory with a non-empty catalog means the archives are not where the
+// server looks for them.
+func (s *Server) libraryStatus() map[string]any {
+	h := s.lib.Health()
+	dir := h.Root
+	if dir == "" {
+		dir = s.cfg.LibraryDir
+	}
+	return map[string]any{
+		"dir":        dir,
+		"configured": s.lib != nil,
+		"exists":     h.Exists,
+		"entries":    h.Entries,
+	}
 }
 
 func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {

@@ -40,6 +40,44 @@ func New(root string) *Library {
 	return &Library{root: root, covers: make(map[int64]coverEntry, coverCacheSize)}
 }
 
+// Health describes the state of the library root: whether it exists and how
+// many top-level entries it has. Safe to call on a nil Library.
+type Health struct {
+	Root    string `json:"root"`
+	Exists  bool   `json:"exists"`
+	Entries int    `json:"entries"` // top-level entries (0 = empty)
+}
+
+func (l *Library) Health() Health {
+	if l == nil {
+		return Health{}
+	}
+	h := Health{Root: l.root}
+	entries, err := os.ReadDir(l.root)
+	if err != nil {
+		return h
+	}
+	h.Exists = true
+	h.Entries = len(entries)
+	return h
+}
+
+// HasArchive reports whether the archive (or folder) for a catalog folder
+// reference exists on disk under the library root. Used to verify that the
+// collection actually lives where the server looks for it.
+func (l *Library) HasArchive(folder string) bool {
+	if l == nil || !pathInside(l.root, folder) {
+		return false
+	}
+	path := filepath.Join(l.root, filepath.FromSlash(folder))
+	for _, ap := range archiveCandidates(path) {
+		if _, err := os.Stat(ap); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Open returns the contents of a book file: folder is an archive or a
 // subfolder in the library root, the file name is file + "." + ext.
 func (l *Library) Open(folder, file, ext string) (io.ReadCloser, int64, error) {

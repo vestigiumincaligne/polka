@@ -103,6 +103,7 @@ const AdminLibraryPage = () => {
   const [smtp, setSmtp] = useState(null);
   const [smtpPwd, setSmtpPwd] = useState("");
   const [smtpMsg, setSmtpMsg] = useState(null);
+  const [library, setLibrary] = useState(null);
 
   useEffect(() => {
     fetchSettings()
@@ -112,9 +113,15 @@ const AdminLibraryPage = () => {
         setTastediveKey(res.tastediveKey ?? "");
         setOpdsEnabled(res.opdsEnabled !== false);
         setSmtp(res.smtp ?? { security: "starttls", port: 587 });
+        setLibrary(res.library ?? null);
       })
       .catch(() => setEnrichment(null));
   }, []);
+
+  // An empty / missing library root almost always means the mounted path and
+  // POLKA_LIBRARY_DIR disagree: the catalog imports, but books "won't open"
+  // and covers are missing.
+  const libraryEmpty = library && library.configured && (!library.exists || library.entries === 0);
 
   const toggleSource = (id) => {
     const next = { ...enrichment, [id]: !enrichment[id] };
@@ -187,6 +194,12 @@ const AdminLibraryPage = () => {
       <header className="library-admin__header">
         <h1>{t("admin.title")}</h1>
       </header>
+
+      {libraryEmpty && (
+        <div className="library-admin__banner library-admin__banner--warning">
+          {t("admin.library.empty", { dir: library.dir })}
+        </div>
+      )}
 
       <section className="library-admin__section">
         <h2>{t("admin.upload")}</h2>
@@ -320,6 +333,12 @@ const AdminLibraryPage = () => {
               </>
             )}
             {!status.running && status.phase === "error" && <>{t("admin.import.error", { err: status.error })}</>}
+          </div>
+        )}
+
+        {status && !status.running && status.warning && (
+          <div className="library-admin__status library-admin__status--warning">
+            ⚠ {status.warning}
           </div>
         )}
       </section>
