@@ -56,6 +56,21 @@ func TestOpdsDownloadAuthChallenge(t *testing.T) {
 	if r.StatusCode != 200 {
 		t.Fatalf("download with Basic -> %d", r.StatusCode)
 	}
+
+	// fb2.zip must be served with a Content-Length — otherwise MoonReader
+	// hangs "at 100%" waiting for the size.
+	zreq, _ := http.NewRequest(http.MethodGet, ts.URL+"/Images/zip/"+itoa64(id), nil)
+	zreq.SetBasicAuth("admin", "secret123")
+	zr, err := plain.Do(zreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(zr.Body)
+	zr.Body.Close()
+	if zr.ContentLength <= 0 || int(zr.ContentLength) != len(body) {
+		t.Errorf("zip download Content-Length=%d, body=%d — want them equal and >0",
+			zr.ContentLength, len(body))
+	}
 }
 
 func TestOpdsCatalog(t *testing.T) {

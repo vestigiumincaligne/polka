@@ -58,6 +58,7 @@ type opdsEntry struct {
 	ID      string       `xml:"id"`
 	Updated string       `xml:"updated"`
 	Authors []opdsAuthor `xml:"author"`
+	Summary string       `xml:"summary,omitempty"`
 	Content *opdsContent `xml:"content,omitempty"`
 	Links   []opdsLink   `xml:"link"`
 }
@@ -88,7 +89,10 @@ func (s *Server) writeFeed(w http.ResponseWriter, feed *opdsFeed) {
 	feed.Updated = time.Now().UTC().Format(time.RFC3339)
 	feed.Links = append(feed.Links,
 		opdsLink{Rel: "start", Href: "/opds", Type: opdsNavType},
+		// Two ways to search: an OpenSearch description and a direct
+		// templated link — different clients understand different ones.
 		opdsLink{Rel: "search", Href: "/opds/opensearch", Type: opdsSearchType},
+		opdsLink{Rel: "search", Href: "/opds/search?q={searchTerms}", Type: opdsAcqType},
 	)
 	w.Header().Set("Content-Type", "application/atom+xml; charset=utf-8")
 	w.Write([]byte(xml.Header))
@@ -139,7 +143,10 @@ func opdsBookEntry(b store.Book) opdsEntry {
 		desc = append(desc, opdsHumanSize(b.Size))
 	}
 	if len(desc) > 0 {
-		entry.Content = &opdsContent{Type: "text", Text: strings.Join(desc, " · ")}
+		line := strings.Join(desc, " · ")
+		// Duplicate into summary and content: clients show different ones.
+		entry.Summary = line
+		entry.Content = &opdsContent{Type: "text", Text: line}
 	}
 
 	id := strconv.FormatInt(b.ID, 10)

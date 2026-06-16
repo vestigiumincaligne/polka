@@ -2,6 +2,7 @@ package server
 
 import (
 	"archive/zip"
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -456,19 +457,28 @@ func (s *Server) handleBookZip(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+f.File+`.`+f.Ext+`.zip"`)
-
-	zw := zip.NewWriter(w)
+	// Build the zip in memory so we can set Content-Length: without it OPDS
+	// clients (MoonReader) hang "at 100%" waiting for the size. An fb2.zip is
+	// small, so buffering is fine.
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
 	entry, err := zw.Create(f.File + "." + f.Ext)
 	if err == nil {
 		_, err = io.Copy(entry, rc)
 	}
+	if err == nil {
+		err = zw.Close()
+	}
 	if err != nil {
 		s.log.Warn("zip stream", "book", f.ID, "error", err)
+		s.apiError(w, err)
 		return
 	}
-	zw.Close()
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+f.File+`.`+f.Ext+`.zip"`)
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
+	w.Write(buf.Bytes())
 }
 
 func (s *Server) handleBookCompact(w http.ResponseWriter, r *http.Request) {
