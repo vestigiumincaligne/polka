@@ -33,6 +33,7 @@ type BookInput struct {
 }
 
 type AuthorName struct {
+	ID                  int64
 	Last, First, Middle string
 }
 

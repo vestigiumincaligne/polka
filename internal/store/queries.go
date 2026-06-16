@@ -441,7 +441,7 @@ func (s *Store) BookDetails(ctx context.Context, bookID int64) (*BookDetails, er
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT a.last_name, a.first_name, a.middle_name
+		SELECT a.id, a.last_name, a.first_name, a.middle_name
 		FROM book_authors ba JOIN authors a ON a.id = ba.author_id
 		WHERE ba.book_id = ? ORDER BY a.last_name`, bookID)
 	if err != nil {
@@ -450,7 +450,7 @@ func (s *Store) BookDetails(ctx context.Context, bookID int64) (*BookDetails, er
 	defer rows.Close()
 	for rows.Next() {
 		var a AuthorName
-		if err := rows.Scan(&a.Last, &a.First, &a.Middle); err != nil {
+		if err := rows.Scan(&a.ID, &a.Last, &a.First, &a.Middle); err != nil {
 			return nil, err
 		}
 		d.Authors = append(d.Authors, a)

@@ -88,6 +88,15 @@ func (s *Server) basicUser(r *http.Request, login, password string) *auth.User {
 func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.authRequired() && s.currentUser(r) == nil {
+			// OPDS clients (MoonReader etc.) use HTTP Basic and have no
+			// session cookie. Without a WWW-Authenticate header they don't
+			// realize Basic is expected and loop on the password prompt
+			// when downloading (and fail to load covers). A browser reaches
+			// this with a cookie, so we don't challenge it — otherwise it
+			// would pop up a native Basic dialog.
+			if _, err := r.Cookie(sessionCookie); err != nil {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Polka", charset="UTF-8"`)
+			}
 			http.Error(w, "authentication required", http.StatusUnauthorized)
 			return
 		}

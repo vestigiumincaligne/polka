@@ -21,6 +21,43 @@ const opdsFB2 = `<?xml version="1.0" encoding="UTF-8"?>
 <body><section><p>Текст.</p></section></body>
 </FictionBook>`
 
+// OPDS clients (MoonReader) download and load covers over HTTP Basic. The
+// /Images/* endpoints used to send a bare 401 without WWW-Authenticate, so
+// the client looped on the password prompt. Verify a Basic challenge is sent
+// without a cookie, and that Basic auth downloads the file.
+func TestOpdsDownloadAuthChallenge(t *testing.T) {
+	ts, client, _ := newManageServer(t)
+
+	resp := uploadFiles(t, client, ts.URL+"/admin/books/upload", map[string][]byte{
+		"voyna.fb2": []byte(opdsFB2),
+	}, nil)
+	var up map[string][]uploadResult
+	json.NewDecoder(resp.Body).Decode(&up)
+	resp.Body.Close()
+	id := up["results"][0].BookID
+
+	plain := &http.Client{}
+	for _, path := range []string{"/Images/fb2/", "/Images/zip/", "/Images/covers/"} {
+		r, _ := plain.Get(ts.URL + path + itoa64(id))
+		r.Body.Close()
+		if r.StatusCode != 401 || !strings.Contains(r.Header.Get("WWW-Authenticate"), "Basic") {
+			t.Errorf("%s without auth -> %d %q, want 401 + Basic challenge",
+				path, r.StatusCode, r.Header.Get("WWW-Authenticate"))
+		}
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/Images/fb2/"+itoa64(id), nil)
+	req.SetBasicAuth("admin", "secret123")
+	r, err := plain.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Body.Close()
+	if r.StatusCode != 200 {
+		t.Fatalf("download with Basic -> %d", r.StatusCode)
+	}
+}
+
 func TestOpdsCatalog(t *testing.T) {
 	ts, client, _ := newManageServer(t)
 

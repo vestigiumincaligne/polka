@@ -97,6 +97,18 @@ func (s *Server) writeFeed(w http.ResponseWriter, feed *opdsFeed) {
 	}
 }
 
+// opdsHumanSize formats a file size as KB/MB for the description line.
+func opdsHumanSize(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%d KB", n/(1<<10))
+	default:
+		return fmt.Sprintf("%d B", n)
+	}
+}
+
 func opdsBookEntry(b store.Book) opdsEntry {
 	now := time.Now().UTC().Format(time.RFC3339)
 	entry := opdsEntry{
@@ -119,6 +131,12 @@ func opdsBookEntry(b store.Book) opdsEntry {
 	}
 	if b.Year > 0 {
 		desc = append(desc, strconv.Itoa(b.Year))
+	}
+	if b.Ext != "" {
+		desc = append(desc, strings.ToUpper(b.Ext))
+	}
+	if b.Size > 0 {
+		desc = append(desc, opdsHumanSize(b.Size))
 	}
 	if len(desc) > 0 {
 		entry.Content = &opdsContent{Type: "text", Text: strings.Join(desc, " · ")}
@@ -218,16 +236,28 @@ func (s *Server) handleOpdsRoot(w http.ResponseWriter, r *http.Request) {
 	s.writeFeed(w, feed)
 }
 
+// opdsBaseURL is the absolute prefix (scheme://host) for links that must be
+// absolute: mobile OPDS clients (MoonReader etc.) often fail to resolve a
+// relative OpenSearch template.
+func opdsBaseURL(r *http.Request) string {
+	scheme := "http"
+	if requestIsSecure(r) {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
+}
+
 // GET /opds/opensearch — search description.
-func (s *Server) handleOpdsOpenSearch(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleOpdsOpenSearch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", opdsSearchType)
-	fmt.Fprint(w, xml.Header, `<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
-  <ShortName>Полка</ShortName>
-  <Description>Поиск книг по названию, автору и серии</Description>
-  <InputEncoding>UTF-8</InputEncoding>
-  <OutputEncoding>UTF-8</OutputEncoding>
-  <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition" template="/opds/search?q={searchTerms}"/>
-</OpenSearchDescription>`)
+	base := opdsBaseURL(r)
+	fmt.Fprintf(w, "%s<OpenSearchDescription xmlns=\"http://a9.com/-/spec/opensearch/1.1/\">\n"+
+		"  <ShortName>Полка</ShortName>\n"+
+		"  <Description>Поиск книг по названию, автору и серии</Description>\n"+
+		"  <InputEncoding>UTF-8</InputEncoding>\n"+
+		"  <OutputEncoding>UTF-8</OutputEncoding>\n"+
+		"  <Url type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\" template=\"%s/opds/search?q={searchTerms}\"/>\n"+
+		"</OpenSearchDescription>", xml.Header, base)
 }
 
 // GET /opds/new — new arrivals with pagination.

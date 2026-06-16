@@ -316,13 +316,17 @@ func (s *Server) handleGetBookForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	genreNames := make([]string, 0, len(d.Genres))
+	genreList := make([]map[string]any, 0, len(d.Genres))
 	for _, code := range d.Genres {
-		genreNames = append(genreNames, genres.NameLang(code, reqLang(r)))
+		name := genres.NameLang(code, reqLang(r))
+		genreNames = append(genreNames, name)
+		genreList = append(genreList, map[string]any{"code": code, "name": name})
 	}
 
 	authors := make([]map[string]any, 0, len(d.Authors))
 	for _, a := range d.Authors {
 		authors = append(authors, map[string]any{
+			"AuthorID": a.ID,
 			"LastName": a.Last, "FirstName": a.First, "MiddleName": a.Middle,
 		})
 	}
@@ -345,6 +349,7 @@ func (s *Server) handleGetBookForm(w http.ResponseWriter, r *http.Request) {
 			"FileName":     d.File,
 		},
 		"authors":    authors,
+		"genresList": genreList,
 		"series":     seriesList,
 		"annotation": "",
 	}

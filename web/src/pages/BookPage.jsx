@@ -325,10 +325,26 @@ const BookPage = ({ user, sync }) => {
 
           <h1 className="book-page__title">{Title}</h1>
 
-          {authorsLine && (
+          {data?.authors?.length ? (
             <div className="book-page__authors">
-              {authorsLine}
+              {data.authors.map((a, i) => {
+                const name = [a.LastName, a.FirstName, a.MiddleName].filter(Boolean).join(" ");
+                return (
+                  <span key={a.AuthorID || i}>
+                    {i > 0 && ", "}
+                    {a.AuthorID ? (
+                      <Link to={`/author/${a.AuthorID}`} className="book-page__author-link">
+                        {name}
+                      </Link>
+                    ) : (
+                      name
+                    )}
+                  </span>
+                );
+              })}
             </div>
+          ) : (
+            authorsLine && <div className="book-page__authors">{authorsLine}</div>
           )}
 
           <div className="book-page__ratings">
@@ -389,14 +405,24 @@ const BookPage = ({ user, sync }) => {
             </div>
           </div>
 
-          {Genres && (
+          {data?.genresList?.length ? (
             <div className="book-page__genres">
-              {Genres.split(", ").map((g) => (
-                <span className="tag" key={g}>
-                  {g}
-                </span>
+              {data.genresList.map((g) => (
+                <Link className="tag" key={g.code} to={`/shelf/genre_${g.code}`}>
+                  {g.name}
+                </Link>
               ))}
             </div>
+          ) : (
+            Genres && (
+              <div className="book-page__genres">
+                {Genres.split(", ").map((g) => (
+                  <span className="tag" key={g}>
+                    {g}
+                  </span>
+                ))}
+              </div>
+            )
           )}
 
           <div className="book-page__actions">
