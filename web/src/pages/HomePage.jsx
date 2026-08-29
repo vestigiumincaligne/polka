@@ -104,7 +104,7 @@ const HomePage = ({ config }) => {
 
       <div className="homepage__shelves">
         {shelves.map((shelf) => {
-          const meta = SHELF_TITLES()[shelf.id] ?? { title: shelf.title || shelf.id };
+          const meta = SHELF_TITLES()[shelf.id] ?? { title: shelf.title || shelf.id, subtitle: shelf.subtitle };
           return (
             <Shelf
               key={shelf.id}

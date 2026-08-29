@@ -494,6 +494,7 @@ func (s *Server) runImport(inpxPath string, replace bool, cleanup bool) {
 	finish(stats, err)
 	if err == nil {
 		s.warnIfArchivesMissing(ctx)
+		s.rematchCollections(ctx)
 	}
 }
 

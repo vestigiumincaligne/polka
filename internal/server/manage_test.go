@@ -25,6 +25,13 @@ import (
 // newManageServer — a server with an empty library and an admin, already logged in.
 func newManageServer(t *testing.T) (*httptest.Server, *http.Client, *store.Store) {
 	t.Helper()
+	ts, client, st, _ := newManageServerDir(t)
+	return ts, client, st
+}
+
+// newManageServerDir is the same, plus a data directory (users.db, collections.db).
+func newManageServerDir(t *testing.T) (*httptest.Server, *http.Client, *store.Store, string) {
+	t.Helper()
 	dir := t.TempDir()
 	libDir := filepath.Join(dir, "lib")
 	os.MkdirAll(libDir, 0o755)
@@ -54,7 +61,7 @@ func newManageServer(t *testing.T) (*httptest.Server, *http.Client, *store.Store
 	client := &http.Client{Jar: jar}
 	resp := postJSON(t, client, ts.URL+"/auth/login", map[string]string{"login": "admin", "password": "secret123"})
 	resp.Body.Close()
-	return ts, client, st
+	return ts, client, st, dir
 }
 
 func uploadFiles(t *testing.T, client *http.Client, url string, files map[string][]byte, fields map[string]string) *http.Response {

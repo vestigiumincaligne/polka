@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"time"
 
+	bundled "github.com/vestigiumincaligne/polka/collections"
 	"github.com/vestigiumincaligne/polka/internal/auth"
+	"github.com/vestigiumincaligne/polka/internal/collections"
 	"github.com/vestigiumincaligne/polka/internal/config"
 	"github.com/vestigiumincaligne/polka/internal/enrich"
 	"github.com/vestigiumincaligne/polka/internal/library"
@@ -28,10 +30,12 @@ type Server struct {
 	desktop *auth.User     // non-nil in desktop mode: owner auto-login
 	sync    *syncer.Syncer // non-nil in server synchronization mode
 	enrich  *enrich.Provider
-	imp     importState // state of the background inpx web import
-	reader  readerCache // parsed books for online reading
-	basic   basicCache  // verified Basic credentials (OPDS)
-	genres  genreCache  // genre counters for search
+	cols    *collections.Service // book collections (collections.db)
+	srcs    sourcesState         // external collection sources sync
+	imp     importState          // state of the background inpx web import
+	reader  readerCache          // parsed books for online reading
+	basic   basicCache           // verified Basic credentials (OPDS)
+	genres  genreCache           // genre counters for search
 
 	loginLimiter *rateLimiter // throttle password guessing
 	guestLimiter *rateLimiter // throttle demo guest creation
@@ -46,6 +50,23 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		loginLimiter: newRateLimiter(10, 5*time.Minute),
 		guestLimiter: newRateLimiter(20, time.Minute),
 		secret:       loadSecretKey(cfg.DataDir),
+	}
+	if cfg.DataDir == "" {
+		// tests without a data directory: collections are unavailable
+	} else if cs, err := collections.Open(filepath.Join(cfg.DataDir, "collections.db")); err != nil {
+		log.Error("collections database", "error", err)
+	} else {
+		s.cols = cs
+		if seeded, err := cs.SeedBundled(context.Background(), bundled.FS()); err != nil {
+			log.Warn("bundled collections", "error", err)
+		} else if len(seeded) > 0 {
+			log.Info("bundled collections loaded", "count", len(seeded))
+		}
+		// Matching may be stale after a re-import; recompute in the background.
+		go s.rematchCollections(context.Background())
+		if cfg.DataDir != "" && cfg.Auth != "demo" {
+			go s.sourcesLoop(context.Background())
+		}
 	}
 	if cfg.Auth == "desktop" {
 		owner, err := users.EnsureLogin(context.Background(), "desktop", "Владелец", auth.RoleAdmin)
@@ -111,6 +132,16 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 
 		// Bulk book export (any logged-in user)
 		mux.HandleFunc("GET /Images/export", s.protected(s.handleExport))
+
+		// Book collections
+		mux.HandleFunc("GET /api/v1/collections", s.protected(s.handleCollectionsList))
+		mux.HandleFunc("GET /api/v1/collections/{slug}", s.protected(s.handleCollectionGet))
+		if !s.demoMode() {
+			mux.HandleFunc("POST /admin/collections/import", s.adminOnly(s.handleCollectionImport))
+			mux.HandleFunc("POST /admin/collections/{slug}/match", s.adminOnly(s.handleCollectionMatch))
+			mux.HandleFunc("POST /admin/collections/{slug}/delete", s.adminOnly(s.handleCollectionDelete))
+			mux.HandleFunc("POST /admin/collections/sources/{id}/sync", s.adminOnly(s.handleSourceSync))
+		}
 
 		// OPDS catalog for readers (HTTP Basic)
 		mux.HandleFunc("GET /opds", s.opdsAuth(s.handleOpdsRoot))

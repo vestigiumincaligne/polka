@@ -35,6 +35,10 @@ const usage = `polka — сервер домашней библиотеки
       --replace                  заменить существующую коллекцию
       (путь можно указать и позиционным аргументом)
   polka passwd <логин> <пароль>  сменить пароль пользователя (восстановление доступа)
+  polka collections import <файл.json>…  добавить/обновить подборки книг
+  polka collections match [slug]         пересчитать сопоставление с библиотекой
+  polka collections list                 показать подборки
+  polka collections remove <slug>        удалить подборку
   polka version                  показать версию
 
 Флаги: --addr, --data-dir, --library-dir (или POLKA_ADDR, POLKA_DATA_DIR, POLKA_LIBRARY_DIR)
@@ -57,6 +61,8 @@ func main() {
 		err = runImport(log, args)
 	case "passwd":
 		err = runPasswd(args)
+	case "collections":
+		err = runCollections(log, args)
 	case "version":
 		fmt.Println(version)
 	default:

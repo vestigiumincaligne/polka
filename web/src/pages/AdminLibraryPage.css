@@ -292,3 +292,33 @@
 @media (max-width: 640px) {
   .library-admin__smtp-grid { grid-template-columns: 1fr; }
 }
+
+.library-admin__collections li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.library-admin__collection-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.library-admin__collection-actions .btn {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.library-admin__subtitle {
+  margin: 18px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.library-admin__source .btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 13px;
+}

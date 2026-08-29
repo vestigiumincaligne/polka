@@ -32,6 +32,12 @@ mobile reading app.
   rate books 1–5 — average ratings are visible to everyone on your server.
   External ratings (LiveLib, Google Books, Open Library) can be enabled per
   source by the admin.
+- **Curated collections.** Well-known book lists — *100 Books of the Century*
+  (Le Monde), BBC's *The Big Read*, the Norwegian Book Club's *100 best books*
+  and more — ship with Polka and appear as home-page shelves showing which of
+  the listed books you already have. Add your own as a JSON list of
+  "author + title", or enable an external source (Forbes.ru book selections,
+  polled daily; off by default). See [`collections/`](collections/README.md).
 - **OPDS catalog.** Connect Moon+ Reader, KOReader, FBReader, or any other
   OPDS-capable app: new books, browse by author, series and genre, your
   "reading now" shelf, and search.
@@ -173,7 +179,8 @@ consent.
 - Single Go binary; the React frontend is embedded at build time.
 - SQLite (pure-Go driver) with WAL and FTS5 — no database server to run.
 - User data (accounts, sessions, progress, ratings, lists) is stored
-  separately from the catalog and survives re-imports.
+  separately from the catalog and survives re-imports; so do curated
+  collections, which are re-matched against the catalog after every import.
 - Sync between desktop clients and the server is state-based with
   last-write-wins per record.
 

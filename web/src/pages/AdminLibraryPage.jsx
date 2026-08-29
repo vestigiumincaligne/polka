@@ -2,6 +2,7 @@ import { t } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchSettings, importInpx, importStatus, saveSettings, testSmtp, uploadBooks } from "../api/manage";
+import { deleteCollection, fetchCollections, importCollection, rematchCollection, syncCollectionSource } from "../api/collections";
 import "./AdminLibraryPage.css";
 
 const ENRICH_SOURCES = () => [
@@ -104,11 +105,13 @@ const AdminLibraryPage = () => {
   const [smtpPwd, setSmtpPwd] = useState("");
   const [smtpMsg, setSmtpMsg] = useState(null);
   const [library, setLibrary] = useState(null);
+  const [colSources, setColSources] = useState(null);
 
   useEffect(() => {
     fetchSettings()
       .then((res) => {
         setEnrichment(res.enrichment ?? null);
+        setColSources(res.collectionSources ?? []);
         setSimilar(res.similar ?? null);
         setTastediveKey(res.tastediveKey ?? "");
         setOpdsEnabled(res.opdsEnabled !== false);
@@ -189,6 +192,67 @@ const AdminLibraryPage = () => {
       .catch(() => setSmtpMsg({ ok: false, text: t("admin.smtp.checkFail") }));
   };
 
+  // --- подборки ---
+  const [collections, setCollections] = useState([]);
+  const [colBusy, setColBusy] = useState(false);
+  const [colMsg, setColMsg] = useState(null);
+  const colInputRef = useRef(null);
+  const reloadCollections = () =>
+    fetchCollections()
+      .then((res) => setCollections(res.collections ?? []))
+      .catch(() => setCollections([]));
+  useEffect(() => {
+    reloadCollections();
+  }, []);
+  const onCollectionFiles = async (files) => {
+    if (!files?.length) return;
+    setColBusy(true);
+    setColMsg(null);
+    try {
+      for (const f of files) {
+        const c = await importCollection(f);
+        setColMsg({ ok: true, text: t("admin.collections.imported", { title: c.title, matched: c.matched, total: c.total }) });
+      }
+      await reloadCollections();
+    } catch (err) {
+      setColMsg({ ok: false, text: t("admin.collections.fail", { err: err.message || "" }) });
+    } finally {
+      setColBusy(false);
+      if (colInputRef.current) colInputRef.current.value = "";
+    }
+  };
+  const rematch = (slug) => {
+    setColBusy(true);
+    rematchCollection(slug)
+      .then((c) => {
+        setColMsg({ ok: true, text: t("admin.collections.imported", { title: c.title, matched: c.matched, total: c.total }) });
+        return reloadCollections();
+      })
+      .catch(() => setColMsg({ ok: false, text: t("admin.collections.fail", { err: "" }) }))
+      .finally(() => setColBusy(false));
+  };
+  const SOURCE_LABELS = { forbes: { label: "Forbes.ru", hint: t("admin.collections.forbes.hint") } };
+  const toggleColSource = (id, on) => {
+    saveSettings({ collectionSources: { [id]: on } })
+      .then((res) => {
+        setColSources(res.collectionSources ?? []);
+        if (on) setColMsg({ ok: true, text: t("admin.collections.source.started") });
+      })
+      .catch(() => alert(t("admin.sources.saveFail")));
+  };
+  const syncColSource = (id) => {
+    syncCollectionSource(id)
+      .then(() => setColMsg({ ok: true, text: t("admin.collections.source.started") }))
+      .catch(() => setColMsg({ ok: false, text: t("admin.collections.fail", { err: "" }) }));
+    setTimeout(() => fetchSettings().then((res) => setColSources(res.collectionSources ?? [])).then(reloadCollections), 8000);
+  };
+  const removeCollection = (c) => {
+    if (!confirm(t("admin.collections.confirmDelete", { title: c.title }))) return;
+    deleteCollection(c.slug)
+      .then(reloadCollections)
+      .catch(() => setColMsg({ ok: false, text: t("admin.collections.fail", { err: "" }) }));
+  };
+
   return (
     <div className="container library-admin">
       <header className="library-admin__header">
@@ -262,6 +326,97 @@ const AdminLibraryPage = () => {
                     <span className="library-admin__ok">{t("admin.upload.added")}</span>
                   </>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="library-admin__section">
+        <h2>{t("admin.collections")}</h2>
+        <p className="library-admin__hint">
+          {t("admin.collections.hint")}{" "}
+          <a href="https://github.com/vestigiumincaligne/polka/tree/main/collections" target="_blank" rel="noreferrer">
+            {t("admin.collections.examples")}
+          </a>
+          {" · "}
+          {t("admin.collections.bundled")}
+        </p>
+        <div className="library-admin__import-row">
+          <input
+            ref={colInputRef}
+            type="file"
+            accept=".json,application/json"
+            multiple
+            disabled={colBusy}
+            onChange={(e) => onCollectionFiles(Array.from(e.target.files ?? []))}
+          />
+          {colBusy && <span className="library-admin__spinner" aria-hidden="true" />}
+          {colMsg && (
+            <span className={colMsg.ok ? "library-admin__ok" : "library-admin__error"}>{colMsg.text}</span>
+          )}
+        </div>
+        {colSources && colSources.length > 0 && (
+          <>
+            <h3 className="library-admin__subtitle">{t("admin.collections.sources")}</h3>
+            <ul className="library-admin__sources">
+              {colSources.map((src) => {
+                const meta = SOURCE_LABELS[src.id] ?? { label: src.id, hint: "" };
+                return (
+                  <li key={src.id}>
+                    <label className="library-admin__source">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(src.enabled)}
+                        onChange={(e) => toggleColSource(src.id, e.target.checked)}
+                      />
+                      <span className="library-admin__source-name">{meta.label}</span>
+                      <span className="library-admin__source-hint">
+                        {meta.hint}
+                        {src.last && (
+                          <>
+                            {" "}
+                            {src.last.error
+                              ? t("admin.collections.source.error", { err: src.last.error })
+                              : t("admin.collections.source.last", { n: src.last.added, at: new Date(src.last.at).toLocaleString() })}
+                          </>
+                        )}
+                      </span>
+                      {src.enabled && (
+                        <button type="button" className="btn btn-ghost" disabled={src.running} onClick={() => syncColSource(src.id)}>
+                          {src.running ? t("admin.collections.source.running") : t("admin.collections.source.sync")}
+                        </button>
+                      )}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+        {collections.length > 0 && (
+          <ul className="library-admin__results library-admin__collections">
+            {collections.map((c) => (
+              <li key={c.slug}>
+                <Link to={`/shelf/${encodeURIComponent(c.shelfId)}`} className="library-admin__file">
+                  {c.title}
+                </Link>
+                <span className="library-admin__authors">
+                  {" "}
+                  {t("collection.count", { matched: c.matched, total: c.total })}
+                  {c.source ? ` · ${c.source}` : ""}
+                  {c.origin && c.origin !== "bundled" && colSources?.some((s) => s.id === c.origin && !s.enabled)
+                    ? ` · ${t("admin.collections.hiddenSource")}`
+                    : ""}
+                </span>
+                <span className="library-admin__collection-actions">
+                  <button type="button" className="btn btn-ghost" disabled={colBusy} onClick={() => rematch(c.slug)}>
+                    {t("admin.collections.rematch")}
+                  </button>
+                  <button type="button" className="btn btn-ghost" disabled={colBusy} onClick={() => removeCollection(c)}>
+                    {t("admin.collections.delete")}
+                  </button>
+                </span>
               </li>
             ))}
           </ul>

@@ -1,7 +1,10 @@
 package server
 
 import (
+	"context"
+
 	"encoding/json"
+	"github.com/vestigiumincaligne/polka/internal/collections/sources"
 	"net/http"
 	"strconv"
 	"strings"
@@ -46,10 +49,11 @@ func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
 			"fantlab":   cfg.FantLab,
 			"tastedive": cfg.TasteDive,
 		},
-		"tastediveKey": cfg.TasteDiveKey,
-		"opdsEnabled":  s.opdsEnabled(r),
-		"smtp":         s.smtpSettings(r),
-		"library":      s.libraryStatus(),
+		"tastediveKey":      cfg.TasteDiveKey,
+		"opdsEnabled":       s.opdsEnabled(r),
+		"smtp":              s.smtpSettings(r),
+		"collectionSources": s.sourcesJSON(r.Context()),
+		"library":           s.libraryStatus(),
 	})
 }
 
@@ -78,6 +82,7 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		TasteDiveKey *string         `json:"tastediveKey"`
 		OpdsEnabled  *bool           `json:"opdsEnabled"`
 		Smtp         *smtpInput      `json:"smtp"`
+		Sources      map[string]bool `json:"collectionSources"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
 		http.Error(w, "invalid body", http.StatusBadRequest)
@@ -121,6 +126,19 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 		if err := s.saveSmtpSettings(r, *req.Smtp); err != nil {
 			s.apiError(w, err)
 			return
+		}
+	}
+	for _, src := range sources.All() {
+		on, ok := req.Sources[src.ID()]
+		if !ok {
+			continue
+		}
+		if err := s.users.SetSetting(r.Context(), sourceSettingKey(src.ID()), boolVal(on)); err != nil {
+			s.apiError(w, err)
+			return
+		}
+		if on {
+			go s.syncSources(context.Background(), src.ID()) // enabled: crawl right away
 		}
 	}
 	s.handleSettingsGet(w, r)

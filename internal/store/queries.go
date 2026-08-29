@@ -120,9 +120,19 @@ func ftsQuery(input, column string) string {
 		if column != "" {
 			term = column + `:` + term
 		}
+		// unicode61 does not equate ё and е: "Вишнёвый" would not find
+		// "Вишневый", so we search for both forms.
+		if alt := strings.NewReplacer("ё", "е", "Ё", "Е").Replace(tok); alt != tok {
+			altTerm := `"` + alt + `"*`
+			if column != "" {
+				altTerm = column + `:` + altTerm
+			}
+			term = `(` + term + ` OR ` + altTerm + `)`
+		}
 		terms = append(terms, term)
 	}
-	return strings.Join(terms, " ")
+	// Explicit AND: FTS5 does not accept implicit joining after a parenthesized group.
+	return strings.Join(terms, " AND ")
 }
 
 func isWordRune(r rune) bool {

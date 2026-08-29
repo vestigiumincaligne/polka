@@ -102,6 +102,11 @@ func (s *Server) handleGetHomeShelves(w http.ResponseWriter, r *http.Request) {
 		personal = append(personal, s.recShelves(r, u.ID, limit)...)
 		out = append(personal, out...)
 	}
+	// Collections ("100 books by Forbes"…) go between personal and shared shelves.
+	if cs := s.collectionShelves(r, limit); len(cs) > 0 {
+		split := len(out) - len(shelves)
+		out = append(append(append([]map[string]any{}, out[:split]...), cs...), out[split:]...)
+	}
 	writeJSON(w, map[string]any{"shelves": out})
 }
 
@@ -174,7 +179,14 @@ func (s *Server) handleGetShelfBooks(w http.ResponseWriter, r *http.Request) {
 	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v > 0 {
 		offset = v
 	}
-	books, title, err := s.st.ShelfBooks(r.Context(), shelfID, limit+1, offset)
+	var books []store.Book
+	var title string
+	var err error
+	if slug, ok := strings.CutPrefix(shelfID, collectionShelfPrefix); ok {
+		books, title, err = s.collectionShelfBooks(r.Context(), slug, limit+1, offset)
+	} else {
+		books, title, err = s.st.ShelfBooks(r.Context(), shelfID, limit+1, offset)
+	}
 	if err != nil {
 		s.apiError(w, err)
 		return
