@@ -144,8 +144,10 @@ func (s *Store) SetBookDeleted(ctx context.Context, bookID int64, deleted bool) 
 		return ErrNotFound
 	}
 
-	if deleted {
-		_, err = s.db.ExecContext(ctx, `DELETE FROM book_search WHERE rowid = ?`, bookID)
+	// Deleted books are kept out of the FTS index (so search counts stay
+	// honest); drop any stale row first so a restore never hits a
+	// duplicate rowid.
+	if _, err = s.db.ExecContext(ctx, `DELETE FROM book_search WHERE rowid = ?`, bookID); err != nil || deleted {
 		return err
 	}
 	_, err = s.db.ExecContext(ctx, `

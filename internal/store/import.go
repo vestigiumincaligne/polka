@@ -258,7 +258,8 @@ func (im *ImportSession) Finish() (ImportStats, error) {
 		                 FROM book_authors ba JOIN authors a ON a.id = ba.author_id
 		                 WHERE ba.book_id = b.id), ''),
 		       coalesce(s.title, '')
-		FROM books b LEFT JOIN series s ON s.id = b.series_id`); err != nil {
+		FROM books b LEFT JOIN series s ON s.id = b.series_id
+		WHERE b.deleted = 0`); err != nil {
 		return im.stats, fmt.Errorf("search index: %w", err)
 	}
 

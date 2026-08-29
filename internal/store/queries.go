@@ -372,7 +372,8 @@ func (s *Store) CatalogShelves(ctx context.Context, count, limit int) ([]Shelf, 
 	var shelves []Shelf
 	for _, g := range picked {
 		books, err := s.queryBooks(ctx,
-			`b.id IN (SELECT book_id FROM book_genres WHERE genre_id = ? ORDER BY random() LIMIT ?)`,
+			`b.id IN (SELECT bg.book_id FROM book_genres bg JOIN books lb ON lb.id = bg.book_id AND lb.deleted = 0
+			          WHERE bg.genre_id = ? ORDER BY random() LIMIT ?)`,
 			`b.title`, 0, 0, g.id, limit)
 		if err != nil {
 			return nil, err
