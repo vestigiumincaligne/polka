@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestSyncStateMergeLWW(t *testing.T) {
@@ -78,5 +79,44 @@ func TestSyncStateMergeLWW(t *testing.T) {
 	}
 	if state.Progress[0].UpdatedAt == "" {
 		t.Error("updatedAt missing in export")
+	}
+}
+
+// Two writes within the same second must still be ordered: the merge is
+// last-write-wins on updated_at, so timestamps need sub-second precision.
+func TestSyncStateSubSecondOrdering(t *testing.T) {
+	s := newService(t)
+	ctx := context.Background()
+	u, _ := s.CreateUser(ctx, "owner", "pass1234", "", RoleAdmin)
+
+	s.SaveProgress(ctx, u.ID, 1, Progress{Chapter: 1})
+	first, _ := s.ExportState(ctx, u.ID)
+	time.Sleep(5 * time.Millisecond) // same second, different millisecond
+	s.SaveProgress(ctx, u.ID, 1, Progress{Chapter: 2})
+	second, _ := s.ExportState(ctx, u.ID)
+	if !(second.Progress[0].UpdatedAt > first.Progress[0].UpdatedAt) {
+		t.Fatalf("updated_at must grow between writes: %q then %q", first.Progress[0].UpdatedAt, second.Progress[0].UpdatedAt)
+	}
+	// Replaying the older state must not roll the newer one back.
+	if err := s.MergeState(ctx, u.ID, first); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := s.GetProgress(ctx, u.ID, 1); p.Chapter != 2 {
+		t.Errorf("older state overwrote the newer one: chapter %d", p.Chapter)
+	}
+	// Legacy whole-second timestamps (rows written before the change)
+	// still lose to anything newer with fractional seconds.
+	old := &SyncState{Progress: []ProgressState{{BookID: 1, Chapter: 9, UpdatedAt: "2000-01-01 00:00:00"}}}
+	s.MergeState(ctx, u.ID, old)
+	if p, _ := s.GetProgress(ctx, u.ID, 1); p.Chapter != 2 {
+		t.Errorf("legacy timestamp must lose: chapter %d", p.Chapter)
+	}
+	s.RateBook(ctx, u.ID, 1, 3)
+	r1, _ := s.ExportState(ctx, u.ID)
+	time.Sleep(5 * time.Millisecond)
+	s.RateBook(ctx, u.ID, 1, 5)
+	r2, _ := s.ExportState(ctx, u.ID)
+	if !(r2.Ratings[0].UpdatedAt > r1.Ratings[0].UpdatedAt) {
+		t.Errorf("rating timestamps must grow: %q then %q", r1.Ratings[0].UpdatedAt, r2.Ratings[0].UpdatedAt)
 	}
 }

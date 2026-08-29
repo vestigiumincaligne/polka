@@ -334,6 +334,10 @@ func (s *Syncer) FetchBooksByIDs(ctx context.Context, ids []int64) ([]map[string
 	return out.TitlesList, nil
 }
 
+// syncDebounce is the delay between a local change and the sync it
+// triggers; a variable so tests can shorten it.
+var syncDebounce = 3 * time.Second
+
 // RequestSync schedules a sync a couple of seconds after a local
 // change (debounce: a burst of edits results in a single exchange).
 func (s *Syncer) RequestSync() {
@@ -342,7 +346,7 @@ func (s *Syncer) RequestSync() {
 	if s.syncTimer != nil {
 		s.syncTimer.Stop()
 	}
-	s.syncTimer = time.AfterFunc(3*time.Second, func() {
+	s.syncTimer = time.AfterFunc(syncDebounce, func() {
 		if !s.Online() {
 			return // offline: changes will arrive once connectivity is restored
 		}

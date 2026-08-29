@@ -195,8 +195,11 @@ func (s *Server) handleReadImage(w http.ResponseWriter, r *http.Request) {
 
 // GET/POST /api/v1/read/{id}/progress — the user's reading position.
 func (s *Server) handleReadProgress(w http.ResponseWriter, r *http.Request) {
-	bookID, ok := s.readerBookID(w, r)
-	if !ok {
+	// Progress is user data: it does not need the library (sync-mode
+	// clients read proxied books without one).
+	bookID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
 		return
 	}
 	u := s.currentUser(r)

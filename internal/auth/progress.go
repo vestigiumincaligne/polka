@@ -38,10 +38,14 @@ type Progress struct {
 	Locator  string  // format-specific position (CFI for epub, etc.)
 }
 
+// SaveProgress stores the position with a millisecond timestamp: the
+// sync merge is last-write-wins on updated_at, and with whole seconds two
+// saves within the same second (e.g. right before and after going
+// offline) would compare equal and the later one would be dropped.
 func (s *Service) SaveProgress(ctx context.Context, userID, bookID int64, p Progress) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO reading_progress (user_id, book_id, chapter, position, overall, locator, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'))
 		ON CONFLICT (user_id, book_id) DO UPDATE
 		SET chapter = excluded.chapter, position = excluded.position,
 		    overall = excluded.overall, locator = excluded.locator, updated_at = excluded.updated_at`,

@@ -57,7 +57,7 @@ func (s *Service) RateBook(ctx context.Context, userID, bookID int64, rating int
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO book_ratings (user_id, book_id, rating, updated_at)
-		VALUES (?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'))
 		ON CONFLICT (user_id, book_id) DO UPDATE
 		SET rating = excluded.rating, updated_at = excluded.updated_at`,
 		userID, bookID, rating)
