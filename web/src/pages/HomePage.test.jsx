@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { t } from "../i18n";
@@ -22,9 +22,10 @@ const renderHome = (config) =>
     </MemoryRouter>
   );
 
+// Each test sets its own return value; the mock is never reset — in
+// vitest 4 a reset/clear followed by a rejected return value is reported
+// as a test error even though the component handles the rejection.
 describe("HomePage", () => {
-  beforeEach(() => fetchHomeShelves.mockClear());
-
   it("renders built-in, personal and collection shelves", async () => {
     fetchHomeShelves.mockResolvedValue({
       shelves: [
