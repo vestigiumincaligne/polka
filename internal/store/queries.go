@@ -87,6 +87,11 @@ func (s *Store) queryBooks(ctx context.Context, where string, order string, limi
 	if limit > 0 {
 		q += fmt.Sprintf(` LIMIT %d OFFSET %d`, limit, offset)
 	}
+	return s.scanBooks(ctx, q, args...)
+}
+
+// scanBooks runs a query that selects bookColumns and scans the rows.
+func (s *Store) scanBooks(ctx context.Context, q string, args ...any) ([]Book, error) {
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
@@ -174,19 +179,34 @@ func (s *Store) SearchTitles(ctx context.Context, query string, limit int) ([]Bo
 	if q == "" {
 		return nil, nil
 	}
-	// For selective queries, pick the best matches by bm25 rank.
-	// If the query matched a huge share of the library, ranking hundreds
-	// of thousands of rows costs more than it's worth — take the first matches found.
+	return s.rankedSearch(ctx, q, limit, 0)
+}
+
+// rankedSearch returns FTS matches ordered by relevance (bm25), with the
+// library rating breaking ties — reprints and same-titled editions with a
+// higher rating come first. When the query matches a huge share of the
+// library, ranking hundreds of thousands of rows costs more than it is
+// worth: the guard keeps the old take-first behavior, sorted by rating.
+func (s *Store) rankedSearch(ctx context.Context, ftsQ string, limit, offset int) ([]Book, error) {
 	var matches int
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT count(*) FROM book_search WHERE book_search MATCH ?`, q).Scan(&matches); err != nil {
+		`SELECT count(*) FROM book_search WHERE book_search MATCH ?`, ftsQ).Scan(&matches); err != nil {
 		return nil, err
 	}
-	sub := `SELECT rowid FROM book_search WHERE book_search MATCH ? ORDER BY rank LIMIT ?`
 	if matches > 5000 {
-		sub = `SELECT rowid FROM book_search WHERE book_search MATCH ? LIMIT ?`
+		return s.scanBooks(ctx, `SELECT`+bookColumns+`
+			FROM (SELECT rowid FROM book_search WHERE book_search MATCH ? LIMIT ? OFFSET ?) m
+			JOIN books b ON b.id = m.rowid
+			LEFT JOIN series s ON s.id = b.series_id
+			WHERE b.deleted = 0
+			ORDER BY b.lib_rate DESC, b.title`, ftsQ, limit, offset)
 	}
-	return s.queryBooks(ctx, `b.id IN (`+sub+`)`, `b.title`, 0, 0, q, limit)
+	return s.scanBooks(ctx, `SELECT`+bookColumns+`
+		FROM (SELECT rowid, rank FROM book_search WHERE book_search MATCH ? ORDER BY rank LIMIT ? OFFSET ?) m
+		JOIN books b ON b.id = m.rowid
+		LEFT JOIN series s ON s.id = b.series_id
+		WHERE b.deleted = 0
+		ORDER BY m.rank, b.lib_rate DESC, b.id`, ftsQ, limit, offset)
 }
 
 func (s *Store) SearchAuthors(ctx context.Context, query string, limit int) ([]AuthorEntry, error) {
@@ -430,9 +450,7 @@ func (s *Store) SearchBooks(ctx context.Context, query string, limit, offset int
 	if q == "" {
 		return nil, nil
 	}
-	return s.queryBooks(ctx,
-		`b.id IN (SELECT rowid FROM book_search WHERE book_search MATCH ? LIMIT ? OFFSET ?)`,
-		`b.title`, 0, 0, q, limit, offset)
+	return s.rankedSearch(ctx, q, limit, offset)
 }
 
 // --- Book card and book file ---

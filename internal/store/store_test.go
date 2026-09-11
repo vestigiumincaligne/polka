@@ -600,3 +600,49 @@ func seriesIDOf(t *testing.T, st *Store, title string) int64 {
 	}
 	return id
 }
+
+// Search results are ordered by relevance, with the library rating
+// breaking ties between equally relevant matches (reprints, editions).
+func TestSearchRanking(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "rank.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	ctx := context.Background()
+	session, _ := st.NewImport(ctx)
+	add := func(file, title string, rate float64) {
+		if err := session.Add(&BookInput{
+			Title: title, Authors: []AuthorName{{Last: "Герберт", First: "Фрэнк"}},
+			Folder: "a.zip", File: file, Ext: "fb2", Lang: "ru", Rate: rate, Added: "2024-01-01",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add("1", "Дюна", 2)
+	add("2", "Дюна", 5)         // the better-rated edition of the same title
+	add("3", "Дюна. Мессия", 4) // longer title: less relevant for "дюна"
+	add("4", "Дюна и хроники", 0) // ranks last: longer title, no rating
+	if _, err := session.Finish(); err != nil {
+		t.Fatal(err)
+	}
+
+	got := titles(must(st.SearchTitles(ctx, "дюна", 10)))
+	if len(got) != 4 || got[0] != "Дюна" || got[1] != "Дюна" || got[2] != "Дюна. Мессия" {
+		t.Fatalf("relevance order: %v", got)
+	}
+	books := must(st.SearchTitles(ctx, "дюна", 10))
+	if books[0].LibRate != 5 || books[1].LibRate != 2 {
+		t.Errorf("rating must break the tie: %v then %v", books[0].LibRate, books[1].LibRate)
+	}
+
+	// The OPDS search paginates over the same ranked order.
+	page1 := must(st.SearchBooks(ctx, "дюна", 2, 0))
+	page2 := must(st.SearchBooks(ctx, "дюна", 2, 2))
+	if len(page1) != 2 || page1[0].LibRate != 5 || len(page2) != 2 {
+		t.Errorf("opds pages: %v / %v", titles(page1), titles(page2))
+	}
+	if page1[0].Title != "Дюна" || page2[0].Title == "Дюна" {
+		t.Errorf("opds order: %v / %v", titles(page1), titles(page2))
+	}
+}
