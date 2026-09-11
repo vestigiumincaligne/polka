@@ -1,11 +1,18 @@
 import { t, currentLang, setLang } from "../i18n";
 import KosyncDialog from "./KosyncDialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import "./TopBar.css";
 
 const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
   const [kosyncOpen, setKosyncOpen] = useState(false);
+  // Narrow screens collapse the search into an icon; tapping it expands
+  // the field over the top bar.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef(null);
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -77,11 +84,31 @@ const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
           )}
         </nav>
 
-        <form className="topbar__search" role="search" onSubmit={submit}>
+        <button
+          type="button"
+          className="topbar__search-toggle"
+          aria-label={t("search.aria")}
+          onClick={() => setSearchOpen(true)}
+        >
+          🔍
+        </button>
+        <form
+          className={`topbar__search ${searchOpen ? "topbar__search--open" : ""}`}
+          role="search"
+          onSubmit={(e) => {
+            submit(e);
+            setSearchOpen(false);
+          }}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setSearchOpen(false);
+          }}
+          onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
+        >
           <span className="topbar__search-icon" aria-hidden="true">
             🔍
           </span>
           <input
+            ref={searchInputRef}
             type="search"
             className="topbar__search-input"
             value={query}
@@ -116,7 +143,8 @@ const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
                 title={t("kosync.title")}
                 onClick={() => setKosyncOpen(true)}
               >
-                {t("kosync.menu")}
+                <span className="topbar__kosync-icon" aria-hidden="true">⇄</span>
+                <span className="topbar__kosync-text">{t("kosync.menu")}</span>
               </button>
             )}
             <span className="topbar__user-name" title={user.login}>

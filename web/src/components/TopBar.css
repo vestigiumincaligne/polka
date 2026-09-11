@@ -8,6 +8,7 @@
 }
 
 .topbar__row {
+  position: relative;
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   align-items: center;
@@ -77,6 +78,20 @@
   color: var(--bg);
 }
 
+.topbar__search-toggle {
+  display: none;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  font-size: 15px;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+}
+
 .topbar__search {
   display: inline-flex;
   align-items: center;
@@ -103,14 +118,14 @@
 
 .topbar__search-input {
   flex: 1;
-  min-width: 0;
+  /* Never let the submit button squeeze the input out of the pill. */
+  min-width: 72px;
   border: 0;
   background: transparent;
   color: var(--fg);
   font-size: 14px;
   padding: 8px 0;
   outline: none;
-  min-width: 0;
 }
 
 .topbar__search-submit {
@@ -177,10 +192,45 @@
 
   .topbar__row {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 8px 10px;
   }
 
   .topbar__user-name {
     display: none;
+  }
+
+  /* The search collapses into an icon; tapping expands the field over
+     the whole top bar so nothing can squeeze the input. */
+  .topbar__search-toggle {
+    display: inline-flex;
+  }
+
+  .topbar__search {
+    display: none;
+  }
+
+  .topbar__search--open {
+    display: flex;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 60;
+    max-width: none;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  /* Specificity over the base rules, which appear later in the file. */
+  .topbar__user .topbar__kosync-text {
+    display: none;
+  }
+
+  .topbar__user .topbar__kosync-icon {
+    display: inline;
+  }
+
+  .topbar__user .topbar__kosync {
+    padding: 8px 10px;
   }
 }
 
@@ -189,6 +239,17 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.topbar__kosync {
+  font-size: 13px;
+}
+
+.topbar__kosync-icon {
+  display: none;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .topbar__user-name {
@@ -197,6 +258,12 @@
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  .topbar__user-name {
+    max-width: 80px;
+  }
 }
 
 .topbar__logout {

@@ -73,6 +73,12 @@ body,
   text-rendering: optimizeLegibility;
 }
 
+html {
+  /* iOS lets the root element pan sideways when any child overflows;
+     clip it here too, body alone is not enough. */
+  overflow-x: clip;
+}
+
 body {
   overflow-x: clip;
   min-height: 100vh;
