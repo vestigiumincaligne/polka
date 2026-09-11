@@ -1,7 +1,17 @@
 package store
 
 // The schema version is stored in PRAGMA user_version.
-const schemaVersion = 3
+const schemaVersion = 4
+
+// v4: KOReader partial-MD5 digests of served book files — the bridge
+// between kosync documents and catalog books. Recomputed lazily (on
+// download), so a re-import simply starts collecting them again.
+const schemaV4 = `
+CREATE TABLE book_digests (
+	digest  TEXT PRIMARY KEY,
+	book_id INTEGER NOT NULL
+) WITHOUT ROWID;
+`
 
 // v3: ISBN for search. Populated on web upload and lazily —
 // on the first view of the book card (from the file's publish-info).
@@ -90,6 +100,12 @@ CREATE TABLE book_keywords (
 	book_id    INTEGER NOT NULL,
 	keyword_id INTEGER NOT NULL,
 	PRIMARY KEY (book_id, keyword_id)
+) WITHOUT ROWID;
+
+-- KOReader partial-MD5 digests of served files (see schemaV4).
+CREATE TABLE book_digests (
+	digest  TEXT PRIMARY KEY,
+	book_id INTEGER NOT NULL
 ) WITHOUT ROWID;
 
 CREATE VIRTUAL TABLE book_search USING fts5(

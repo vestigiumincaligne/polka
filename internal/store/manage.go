@@ -167,7 +167,7 @@ func (s *Store) Clear(ctx context.Context) error {
 	tables := []string{
 		"book_search", "authors_search", "series_search",
 		"book_authors", "book_genres", "book_keywords",
-		"books", "authors", "series", "genres", "keywords", "folders",
+		"books", "authors", "series", "genres", "keywords", "folders", "book_digests",
 	}
 	for _, table := range tables {
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM `+table); err != nil {
@@ -194,6 +194,24 @@ func (s *Store) FindByHash(ctx context.Context, column, hash string) (*Book, err
 		return nil, ErrNotFound
 	}
 	return &books[0], nil
+}
+
+// SetBookDigest remembers a KOReader-style digest of a served book file.
+func (s *Store) SetBookDigest(ctx context.Context, digest string, bookID int64) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO book_digests (digest, book_id) VALUES (?, ?)
+		ON CONFLICT (digest) DO UPDATE SET book_id = excluded.book_id`, digest, bookID)
+	return err
+}
+
+// BookIDByDigest maps a KOReader document digest back to a book.
+func (s *Store) BookIDByDigest(ctx context.Context, digest string) (int64, error) {
+	var id int64
+	err := s.db.QueryRowContext(ctx, `SELECT book_id FROM book_digests WHERE digest = ?`, digest).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return id, err
 }
 
 // normalizeForMatch normalizes a string for metadata comparison:

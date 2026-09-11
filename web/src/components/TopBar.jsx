@@ -1,9 +1,11 @@
 import { t, currentLang, setLang } from "../i18n";
+import KosyncDialog from "./KosyncDialog";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import "./TopBar.css";
 
 const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
+  const [kosyncOpen, setKosyncOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -107,6 +109,16 @@ const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
 
         {user && (
           <div className="topbar__user">
+            {!desktop && !sync && (
+              <button
+                type="button"
+                className="btn btn-link topbar__kosync"
+                title={t("kosync.title")}
+                onClick={() => setKosyncOpen(true)}
+              >
+                {t("kosync.menu")}
+              </button>
+            )}
             <span className="topbar__user-name" title={user.login}>
               {desktop ? t("owner") : user.displayName || user.login}
             </span>
@@ -118,6 +130,7 @@ const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
           </div>
         )}
       </div>
+      {kosyncOpen && <KosyncDialog onClose={() => setKosyncOpen(false)} />}
     </header>
   );
 };

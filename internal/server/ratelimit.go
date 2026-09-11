@@ -58,6 +58,16 @@ func (rl *rateLimiter) allow(key string) bool {
 	return true
 }
 
+// blocked reports whether the key has exhausted its window without
+// recording anything (for limiters that only count failures).
+func (rl *rateLimiter) blocked(key string) bool {
+	now := time.Now()
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	e := rl.hits[key]
+	return e != nil && !now.After(e.reset) && e.count >= rl.limit
+}
+
 // clientIP extracts the caller's address, trusting X-Forwarded-For only
 // for its last hop (the reverse proxy we sit behind appends the real
 // client). Falls back to RemoteAddr.

@@ -106,6 +106,12 @@ func TestMigrateFromV1(t *testing.T) {
 		legacy = strings.Replace(legacy, line, "", 1)
 	}
 	legacy = strings.Replace(legacy, "\tdeleted    INTEGER NOT NULL DEFAULT 0,\n", "\tdeleted    INTEGER NOT NULL DEFAULT 0\n", 1)
+	// v1 databases had no digests table either (added in v4).
+	digests := legacy[strings.Index(legacy, "-- KOReader"):strings.Index(legacy, "CREATE VIRTUAL TABLE book_search")]
+	if digests == "" {
+		t.Fatal("schemaV1 changed: digests block not found")
+	}
+	legacy = strings.Replace(legacy, digests, "", 1)
 	if _, err := db.Exec(legacy); err != nil {
 		t.Fatalf("legacy schema: %v", err)
 	}
@@ -131,6 +137,9 @@ func TestMigrateFromV1(t *testing.T) {
 	var hash, isbn string
 	if err := st.DB().QueryRow(`SELECT file_hash, isbn FROM books`).Scan(&hash, &isbn); err != nil {
 		t.Errorf("new columns missing after migration: %v", err)
+	}
+	if err := st.SetBookDigest(context.Background(), strings.Repeat("a", 32), 1); err != nil {
+		t.Errorf("book_digests missing after migration: %v", err)
 	}
 	ctx := context.Background()
 	if n, _ := st.BookCount(ctx); n != 1 {

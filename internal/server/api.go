@@ -454,7 +454,11 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 	if size > 0 {
 		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	}
-	io.Copy(w, rc)
+	// Record the KOReader digest of the served file so positions pushed by
+	// e-ink devices (kosync) can be matched back to this book.
+	tee := &digestTee{}
+	copied, _ := io.Copy(io.MultiWriter(w, tee), rc)
+	s.recordDigest(tee, f.ID, size, copied)
 }
 
 func (s *Server) handleBookZip(w http.ResponseWriter, r *http.Request) {

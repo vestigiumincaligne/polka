@@ -70,6 +70,12 @@ func (s *Store) migrate() error {
 		if _, err := tx.Exec(schemaV3); err != nil {
 			return err
 		}
+		version = 3
+	}
+	if version == 3 {
+		if _, err := tx.Exec(schemaV4); err != nil {
+			return err
+		}
 	}
 	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, schemaVersion)); err != nil {
 		return err

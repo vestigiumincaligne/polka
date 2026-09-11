@@ -99,6 +99,11 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		s.registerDesktopConfigRoutes(mux)
 	}
 
+	if s.sync == nil && !s.demoMode() {
+		// KOReader progress sync (kosync protocol) — server mode only.
+		s.registerKosyncRoutes(mux)
+	}
+
 	if s.sync != nil {
 		// Sync mode: catalog and reading go through proxy/offline cache,
 		// library management and settings are proxied to the server.

@@ -41,6 +41,11 @@ mobile reading app.
 - **OPDS catalog.** Connect Moon+ Reader, KOReader, FBReader, or any other
   OPDS-capable app: new books, browse by author, series and genre, your
   "reading now" shelf, and search.
+- **E-ink reader progress sync.** Polka speaks the KOReader sync protocol
+  (kosync): KOReader on PocketBook, Kindle, Kobo, reMarkable and friends
+  pushes the reading position straight to your server, and books read on
+  the device show their progress on Polka's "Reading now" shelf. Each user
+  sets a device password in the top-bar "E-reader" dialog.
 - **Send to your e-reader.** Configure SMTP once and e-mail any book straight
   to your Kindle / Kobo / PocketBook from its page (the SMTP password is stored
   encrypted).
@@ -157,6 +162,20 @@ Basic with your Polka account. The catalog has new books, **browse by author,
 by series, and by genre** (alphabetical), search, and a personal "Reading now"
 feed; downloads work in fb2, zip, epub, and pdf. The admin can turn OPDS on or
 off and copy the connection address in *Manage → OPDS*.
+
+## E-ink readers (PocketBook, Kindle, Kobo…)
+
+Install [KOReader](https://koreader.rocks) on the device, then:
+
+1. **Books**: add the OPDS catalog `http://your-server:12791/opds`
+   (your Polka login and password) — browse, search and download right
+   on the device. PocketBook owners can also use Polka's *Send to
+   e-reader* button with their `@pbsync.com` address.
+2. **Progress sync**: in Polka's top bar open *E-reader*, set a device
+   password; on the device: *Tools → Progress sync*, server address =
+   your Polka URL, username = your Polka login, password = the device
+   password. Positions of books downloaded through Polka then follow you
+   between the device, the web reader and other KOReader devices.
 
 ## Configuration
 

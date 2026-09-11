@@ -1,0 +1,94 @@
+.kosync__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.kosync__card {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+  border-radius: 14px;
+  padding: 22px 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.kosync__card h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.kosync__hint {
+  margin: 0 0 12px;
+  color: var(--fg-muted);
+  font-size: 14px;
+}
+
+.kosync__steps {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.kosync__steps code {
+  background: var(--border, rgba(0, 0, 0, 0.08));
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.kosync__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.kosync__row input {
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.kosync__row--status {
+  font-size: 14px;
+  justify-content: space-between;
+}
+
+.kosync__row--close {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
+
+.kosync__on {
+  color: var(--ok, #2e7d32);
+  font-weight: 600;
+}
+
+.kosync__off {
+  color: var(--fg-muted);
+}
+
+.kosync__ok {
+  color: var(--ok, #2e7d32);
+  font-size: 14px;
+}
+
+.kosync__error {
+  color: var(--danger, #c62828);
+  font-size: 14px;
+}
