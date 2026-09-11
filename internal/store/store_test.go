@@ -620,8 +620,8 @@ func TestSearchRanking(t *testing.T) {
 		}
 	}
 	add("1", "Дюна", 2)
-	add("2", "Дюна", 5)         // the better-rated edition of the same title
-	add("3", "Дюна. Мессия", 4) // longer title: less relevant for "дюна"
+	add("2", "Дюна", 5)           // the better-rated edition of the same title
+	add("3", "Дюна. Мессия", 4)   // longer title: less relevant for "дюна"
 	add("4", "Дюна и хроники", 0) // ranks last: longer title, no rating
 	if _, err := session.Finish(); err != nil {
 		t.Fatal(err)
