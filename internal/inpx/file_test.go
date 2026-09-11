@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -18,9 +19,16 @@ func writeInpx(t *testing.T, entries map[string]string) string {
 		t.Fatal(err)
 	}
 	zw := zip.NewWriter(f)
-	for name, data := range entries {
+	// Deterministic entry order: Records() walks .inp files in zip order,
+	// and the assertions below rely on arch-001 coming first.
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
 		w, _ := zw.Create(name)
-		w.Write([]byte(data))
+		w.Write([]byte(entries[name]))
 	}
 	zw.Close()
 	f.Close()
