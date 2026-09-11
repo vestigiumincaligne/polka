@@ -4,9 +4,11 @@ import { Link, useParams } from "react-router-dom";
 import {
   fetchChapter,
   fetchProgress,
+  fetchReaderPrefs,
   fetchReadMeta,
   localProgress,
   saveProgress,
+  saveReaderPrefs,
 } from "../api/reader";
 import "./ReaderPage.css";
 
@@ -14,6 +16,9 @@ import "./ReaderPage.css";
 const PdfReader = lazy(() => import("./PdfReader"));
 
 const FONT_SIZES = [17, 19, 21, 24];
+const LINE_HEIGHTS = [1.5, 1.72, 1.95];
+const MEASURES = ["540px", "640px", "760px"];
+const DEFAULT_PREFS = { fontStep: 1, theme: "paper", font: "serif", lineStep: 1, widthStep: 1 };
 const THEMES = () => [
   { id: "paper", label: t("reader.theme.paper") },
   { id: "sepia", label: t("reader.theme.sepia") },
@@ -22,9 +27,9 @@ const THEMES = () => [
 
 const loadPrefs = () => {
   try {
-    return { fontStep: 1, theme: "paper", ...JSON.parse(localStorage.getItem("polka-reader-prefs")) };
+    return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem("polka-reader-prefs")) };
   } catch {
-    return { fontStep: 1, theme: "paper" };
+    return { ...DEFAULT_PREFS };
   }
 };
 
@@ -42,6 +47,8 @@ const ReaderPage = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [note, setNote] = useState(null);
   const [prefs, setPrefs] = useState(loadPrefs);
+  const [immersive, setImmersive] = useState(false);
+  const prefsSynced = useRef(false); // server prefs are authoritative once loaded
 
   const serverStored = useRef(false);
   const restoreTo = useRef(null); // {index, ratio} to jump to after render
@@ -51,6 +58,24 @@ const ReaderPage = () => {
   const sentinelRef = useRef(null);
 
   const total = meta?.chapters?.length ?? 0;
+
+  // Server-side prefs override the local copy (they follow the user
+  // between devices); public mode falls back to localStorage silently.
+  useEffect(() => {
+    let cancelled = false;
+    fetchReaderPrefs()
+      .then((server) => {
+        if (cancelled) return;
+        prefsSynced.current = true;
+        if (server && Object.keys(server).length) {
+          setPrefs((prev) => ({ ...prev, ...server }));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const totalRef = useRef(0);
   const persist = useCallback(
@@ -224,6 +249,11 @@ const ReaderPage = () => {
       goTo(current.index - 1);
     } else if (x > 0.85) {
       goTo(current.index + 1);
+    } else {
+      // Distraction-free reading: the center tap hides the interface.
+      setImmersive((v) => !v);
+      setSettingsOpen(false);
+      setTocOpen(false);
     }
   };
 
@@ -237,6 +267,16 @@ const ReaderPage = () => {
       }
       return next;
     });
+    if (prefsSynced.current) saveReaderPrefs(patch).catch(() => {});
+  };
+
+  const fullscreenAvailable = typeof document !== "undefined" && document.fullscreenEnabled;
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
   };
 
   if (error) {
@@ -268,8 +308,12 @@ const ReaderPage = () => {
 
   return (
     <div
-      className={`reader reader--${prefs.theme}`}
-      style={{ "--reader-font-size": `${FONT_SIZES[prefs.fontStep]}px` }}
+      className={`reader reader--${prefs.theme} reader--font-${prefs.font ?? "serif"} ${immersive ? "reader--immersive" : ""}`}
+      style={{
+        "--reader-font-size": `${FONT_SIZES[prefs.fontStep] ?? FONT_SIZES[1]}px`,
+        "--reader-line-height": LINE_HEIGHTS[prefs.lineStep] ?? LINE_HEIGHTS[1],
+        "--reader-measure": MEASURES[prefs.widthStep] ?? MEASURES[1],
+      }}
     >
       <header className="reader__bar">
         <Link to={`/book/${bookId}`} className="reader__bar-btn" title={t("reader.toBook")}>
@@ -303,6 +347,50 @@ const ReaderPage = () => {
             </button>
           </div>
           <div className="reader__settings-group">
+            <span className="reader__settings-label">{t("reader.typeface")}</span>
+            <button
+              type="button"
+              className={prefs.font !== "sans" ? "is-active" : ""}
+              style={{ fontFamily: "georgia, serif" }}
+              onClick={() => updatePrefs({ font: "serif" })}
+            >
+              {t("reader.serif")}
+            </button>
+            <button
+              type="button"
+              className={prefs.font === "sans" ? "is-active" : ""}
+              onClick={() => updatePrefs({ font: "sans" })}
+            >
+              {t("reader.sans")}
+            </button>
+          </div>
+          <div className="reader__settings-group">
+            <span className="reader__settings-label">{t("reader.lineHeight")}</span>
+            {LINE_HEIGHTS.map((lh, i) => (
+              <button
+                type="button"
+                key={lh}
+                className={(prefs.lineStep ?? 1) === i ? "is-active" : ""}
+                onClick={() => updatePrefs({ lineStep: i })}
+              >
+                {lh}
+              </button>
+            ))}
+          </div>
+          <div className="reader__settings-group">
+            <span className="reader__settings-label">{t("reader.measure")}</span>
+            {[t("reader.measure.narrow"), t("reader.measure.normal"), t("reader.measure.wide")].map((label, i) => (
+              <button
+                type="button"
+                key={label}
+                className={(prefs.widthStep ?? 1) === i ? "is-active" : ""}
+                onClick={() => updatePrefs({ widthStep: i })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="reader__settings-group">
             <span className="reader__settings-label">{t("reader.theme")}</span>
             {THEMES().map((th) => (
               <button
@@ -315,6 +403,15 @@ const ReaderPage = () => {
               </button>
             ))}
           </div>
+          {fullscreenAvailable && (
+            <div className="reader__settings-group">
+              <span className="reader__settings-label">{t("reader.fullscreen")}</span>
+              <button type="button" onClick={toggleFullscreen}>
+                ⛶
+              </button>
+            </div>
+          )}
+          <p className="reader__settings-hint">{t("reader.immersiveHint")}</p>
         </div>
       )}
 

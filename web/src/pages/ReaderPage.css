@@ -33,6 +33,26 @@
 
 /* --- Top bar --- */
 
+/* Distraction-free mode: the center tap slides the chrome away. */
+.reader--immersive .reader__bar {
+  transform: translateY(-110%);
+}
+
+.reader--immersive .reader__progress {
+  transform: translateY(110%);
+}
+
+.reader__bar,
+.reader__progress {
+  transition: transform 0.25s ease;
+}
+
+.reader__settings-hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--reader-muted);
+}
+
 .reader__bar {
   position: sticky;
   top: 0;
@@ -195,7 +215,7 @@
 /* --- Article column --- */
 
 .reader__page {
-  max-width: 640px;
+  max-width: var(--reader-measure, 640px);
   margin: 0 auto;
   padding: 48px 20px 96px;
 }
@@ -237,8 +257,13 @@
 .reader__content {
   font-family: var(--reader-serif);
   font-size: var(--reader-font-size, 19px);
-  line-height: 1.72;
+  line-height: var(--reader-line-height, 1.72);
   letter-spacing: 0.003em;
+}
+
+.reader--font-sans .reader__content {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
 
 .reader__content p {

@@ -210,6 +210,8 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 	mux.HandleFunc("POST /api/v1/books/{id}/rating", s.protected(s.maybeSyncAfter(s.handleRateBook)))
 
 	// Send a book to an e-reader by email
+	mux.HandleFunc("GET /api/v1/me/reader-prefs", s.protected(s.handleReaderPrefs))
+	mux.HandleFunc("POST /api/v1/me/reader-prefs", s.protected(s.handleReaderPrefs))
 	mux.HandleFunc("GET /api/v1/me/reader-email", s.protected(s.handleReaderEmail))
 	mux.HandleFunc("POST /api/v1/me/reader-email", s.protected(s.handleReaderEmail))
 	mux.HandleFunc("POST /api/v1/books/{id}/send", s.protected(s.handleSendBook))

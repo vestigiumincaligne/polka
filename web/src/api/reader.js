@@ -32,3 +32,15 @@ export const localProgress = {
     }
   },
 };
+
+// Per-user reader preferences on the server (401 in public mode is fine —
+// the caller falls back to localStorage).
+export const fetchReaderPrefs = () => api.getJson("api/v1/me/reader-prefs");
+
+export const saveReaderPrefs = (prefs) =>
+  fetch(api.buildUrl("api/v1/me/reader-prefs"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(prefs),
+  });
