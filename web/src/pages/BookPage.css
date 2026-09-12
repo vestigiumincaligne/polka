@@ -233,7 +233,10 @@ a.tag:hover {
   }
 
   .book-page__cover {
-    position: static;
+    /* relative, not static: the absolutely positioned reading-progress
+       strip must stay pinned to the cover, not to the whole page. */
+    position: relative;
+    top: auto; /* the sticky offset would otherwise shift it over the title */
     max-width: 240px;
     margin: 0 auto;
   }

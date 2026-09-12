@@ -10,8 +10,18 @@ const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
   // the field over the top bar.
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
+  const searchFormRef = useRef(null);
   useEffect(() => {
-    if (searchOpen) searchInputRef.current?.focus();
+    if (!searchOpen) return undefined;
+    searchInputRef.current?.focus();
+    // Close on a tap outside the form. Closing on blur is a trap on iOS:
+    // blur fires before the submit button's click, so "Найти" would
+    // never receive it.
+    const onPointerDown = (e) => {
+      if (!searchFormRef.current?.contains(e.target)) setSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [searchOpen]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,14 +103,12 @@ const TopBar = ({ user, onLogout, desktop = false, sync = null }) => {
           🔍
         </button>
         <form
+          ref={searchFormRef}
           className={`topbar__search ${searchOpen ? "topbar__search--open" : ""}`}
           role="search"
           onSubmit={(e) => {
             submit(e);
             setSearchOpen(false);
-          }}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) setSearchOpen(false);
           }}
           onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
         >
