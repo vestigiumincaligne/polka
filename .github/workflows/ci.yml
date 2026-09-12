@@ -26,7 +26,9 @@ jobs:
         run: cd web && npm ci && npm run build
 
       - name: Test frontend
-        run: cd web && npm test
+        # The github-actions reporter turns failures into annotations, so
+        # the failing test's name is visible without access to job logs.
+        run: cd web && npm test -- --reporter=default --reporter=github-actions
 
       - uses: actions/setup-go@v5
         with:
