@@ -436,6 +436,11 @@ const BookPage = ({ user, sync }) => {
             <a className={`btn ${Ext === ".fb2" || Ext === ".pdf" ? "btn-ghost" : "btn-primary"}`} href={api.fb2Url(BookID)}>
               {t("book.download", { ext: Ext || ".fb2" })}
             </a>
+            {Ext === ".fb2" && (
+              <a className="btn btn-primary" href={api.epubUrl(BookID)}>
+                {t("book.download", { ext: ".epub" })}
+              </a>
+            )}
             {smtpReady && (
               <button
                 type="button"

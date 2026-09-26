@@ -191,6 +191,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		// Covers and book files
 		mux.HandleFunc("GET /Images/covers/{id}", s.protected(s.handleCover))
 		mux.HandleFunc("GET /Images/fb2/{id}", s.protected(s.handleBookDownload))
+		mux.HandleFunc("GET /Images/epub/{id}", s.protected(s.handleBookEpub))
 		mux.HandleFunc("GET /Images/zip/{id}", s.protected(s.handleBookZip))
 		mux.HandleFunc("GET /Images/fb2compact/{id}", s.protected(s.handleBookCompact))
 
