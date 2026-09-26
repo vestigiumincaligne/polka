@@ -114,6 +114,9 @@ polka serve --library-dir /path/to/books
 
 Requires Go 1.26+ and Node 20+.
 
+FB2-to-EPUB downloads additionally require [Pandoc](https://pandoc.org/) at
+runtime. On Ubuntu, install it with `sudo apt install pandoc`.
+
 ```sh
 git clone https://github.com/vestigiumincaligne/polka
 cd polka
