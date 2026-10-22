@@ -217,6 +217,9 @@ func (s *Server) extractUploadMeta(path, base, ext string) *store.BookInput {
 		}
 		input.Series = meta.Series
 		input.SeriesNum = meta.SeriesNum
+		for _, sequence := range meta.Sequences {
+			input.SeriesList = append(input.SeriesList, store.SeriesRef{Title: sequence.Name, SeqNumber: sequence.Number})
+		}
 		input.Genres = meta.Genres
 		input.Lang = meta.Lang
 		input.ISBN = meta.ISBN

@@ -57,6 +57,17 @@
   font-weight: 600;
 }
 
+.book-page__series-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.book-page__series-link:hover,
+.book-page__series-link:focus-visible {
+  color: var(--fg);
+}
+
 .book-page__title {
   margin: 0;
   font-size: clamp(28px, 4vw, 40px);

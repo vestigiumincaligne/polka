@@ -19,6 +19,7 @@ type FB2Meta struct {
 	Authors        []PersonName
 	Series         string
 	SeriesNum      int
+	Sequences      []Sequence
 	Genres         []string
 	Lang           string
 	AnnotationHTML string
@@ -28,6 +29,12 @@ type FB2Meta struct {
 	ISBN           string
 	Cover          []byte
 	CoverMime      string
+}
+
+// Sequence is one FB2 series membership, including its own book number.
+type Sequence struct {
+	Name   string
+	Number int
 }
 
 type PersonName struct {
@@ -89,18 +96,21 @@ func ParseFB2(r io.Reader, withCover bool) (*FB2Meta, error) {
 			case name == "author" && in("description", "title-info"):
 				meta.Authors = append(meta.Authors, PersonName{})
 
-			case name == "sequence" && in("description", "title-info"):
+			case name == "sequence" && len(path) >= 3 && path[1] == "description" && path[2] == "title-info":
+				sequence := Sequence{}
 				for _, a := range t.Attr {
 					switch a.Name.Local {
 					case "name":
-						if meta.Series == "" {
-							meta.Series = a.Value
-						}
+						sequence.Name = strings.TrimSpace(a.Value)
 					case "number":
-						if meta.SeriesNum == 0 {
-							meta.SeriesNum, _ = strconv.Atoi(a.Value)
-						}
+						sequence.Number, _ = strconv.Atoi(a.Value)
 					}
+				}
+				if sequence.Name != "" {
+					if len(meta.Sequences) == 0 {
+						meta.Series, meta.SeriesNum = sequence.Name, sequence.Number
+					}
+					meta.Sequences = append(meta.Sequences, sequence)
 				}
 
 			case name == "binary":

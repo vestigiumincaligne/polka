@@ -96,3 +96,20 @@ func TestStripBinaries(t *testing.T) {
 		t.Error("body damaged")
 	}
 }
+
+func TestFB2Sequences(t *testing.T) {
+	xml := `<FictionBook><description><title-info><book-title>Book</book-title>
+		<sequence name="First"/><sequence name="Second" number="7"><sequence name="Nested" number="2"/></sequence>
+		<sequence number="99"/></title-info><src-title-info><sequence name="Not this edition" number="3"/></src-title-info>
+		</description><body/></FictionBook>`
+	meta, err := ParseFB2(strings.NewReader(xml), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(meta.Sequences) != 3 || meta.Sequences[1].Number != 7 || meta.Sequences[2].Name != "Nested" {
+		t.Fatalf("sequences: %+v", meta.Sequences)
+	}
+	if meta.Series != "First" || meta.SeriesNum != 0 {
+		t.Fatalf("primary number taken from another series: %+v", meta)
+	}
+}

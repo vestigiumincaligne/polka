@@ -49,22 +49,27 @@ func (s *Store) AddBook(ctx context.Context, b *BookInput) (int64, error) {
 		return 0, err
 	}
 
+	series := b.seriesRefs()
+	primary := SeriesRef{}
+	if len(series) > 0 {
+		primary = series[0]
+	}
 	var seriesID any
-	if b.Series != "" {
+	if primary.Title != "" {
 		id, err := lookupOrInsert(ctx, tx,
 			`SELECT id FROM series WHERE title = ?`, `INSERT INTO series (title) VALUES (?)`,
 			func(id int64) error {
-				_, err := tx.ExecContext(ctx, `INSERT INTO series_search (rowid, title) VALUES (?, ?)`, id, b.Series)
+				_, err := tx.ExecContext(ctx, `INSERT INTO series_search (rowid, title) VALUES (?, ?)`, id, primary.Title)
 				return err
-			}, b.Series)
+			}, primary.Title)
 		if err != nil {
 			return 0, err
 		}
 		seriesID = id
 	}
 	var seriesNum any
-	if b.SeriesNum > 0 {
-		seriesNum = b.SeriesNum
+	if primary.SeqNumber > 0 {
+		seriesNum = primary.SeqNumber
 	}
 	var year any
 	if b.Year > 0 {
@@ -80,6 +85,9 @@ func (s *Store) AddBook(ctx context.Context, b *BookInput) (int64, error) {
 	}
 	bookID, err := res.LastInsertId()
 	if err != nil {
+		return 0, err
+	}
+	if _, err := addBookSeries(ctx, tx, bookID, series); err != nil {
 		return 0, err
 	}
 
@@ -127,7 +135,7 @@ func (s *Store) AddBook(ctx context.Context, b *BookInput) (int64, error) {
 
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO book_search (rowid, title, authors, series) VALUES (?, ?, ?, ?)`,
-		bookID, b.Title, strings.Join(authorNames, " "), b.Series); err != nil {
+		bookID, b.Title, strings.Join(authorNames, " "), seriesTitles(series)); err != nil {
 		return 0, err
 	}
 
@@ -156,8 +164,9 @@ func (s *Store) SetBookDeleted(ctx context.Context, bookID int64, deleted bool) 
 		       coalesce((SELECT group_concat(trim(a.last_name || ' ' || a.first_name), ' ')
 		                 FROM book_authors ba JOIN authors a ON a.id = ba.author_id
 		                 WHERE ba.book_id = b.id), ''),
-		       coalesce(s.title, '')
-		FROM books b LEFT JOIN series s ON s.id = b.series_id WHERE b.id = ?`, bookID)
+		       coalesce((SELECT group_concat(s.title, ' ') FROM book_series bs JOIN series s ON s.id = bs.series_id
+                          WHERE bs.book_id = b.id), '')
+		FROM books b WHERE b.id = ?`, bookID)
 	return err
 }
 
@@ -166,7 +175,7 @@ func (s *Store) SetBookDeleted(ctx context.Context, bookID int64, deleted bool) 
 func (s *Store) Clear(ctx context.Context) error {
 	tables := []string{
 		"book_search", "authors_search", "series_search",
-		"book_authors", "book_genres", "book_keywords",
+		"book_authors", "book_genres", "book_keywords", "book_series",
 		"books", "authors", "series", "genres", "keywords", "folders", "book_digests",
 	}
 	for _, table := range tables {

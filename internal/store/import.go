@@ -10,22 +10,23 @@ import (
 
 // BookInput is a single book for bulk import.
 type BookInput struct {
-	LibID     string
-	Title     string
-	Series    string
-	SeriesNum int
-	Authors   []AuthorName
-	Genres    []string
-	Keywords  []string
-	Folder    string
-	File      string
-	Ext       string
-	Size      int64
-	Lang      string
-	Year      int
-	Added     string
-	Rate      float64
-	Deleted   bool
+	LibID      string
+	Title      string
+	Series     string
+	SeriesNum  int
+	SeriesList []SeriesRef
+	Authors    []AuthorName
+	Genres     []string
+	Keywords   []string
+	Folder     string
+	File       string
+	Ext        string
+	Size       int64
+	Lang       string
+	Year       int
+	Added      string
+	Rate       float64
+	Deleted    bool
 	// Hashes for duplicate detection (populated on web upload).
 	FileHash    string
 	ContentHash string
@@ -65,7 +66,7 @@ type ImportSession struct {
 }
 
 type importStmts struct {
-	folder, series, author, genre, keyword, book, ba, bg, bk *sql.Stmt
+	folder, series, author, genre, keyword, book, ba, bg, bk, bs *sql.Stmt
 }
 
 const importBatchSize = 25_000
@@ -128,6 +129,7 @@ func (im *ImportSession) begin() error {
 		keyword: prep(`INSERT INTO keywords (name) VALUES (?)`),
 		book: prep(`INSERT INTO books (lib_id, title, series_id, series_num, folder_id, file, ext, size, lang, year, added, lib_rate, deleted)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		bs: prep(`INSERT INTO book_series (book_id, series_id, series_num, position) VALUES (?, ?, ?, ?)`),
 		ba: prep(`INSERT OR IGNORE INTO book_authors (book_id, author_id) VALUES (?, ?)`),
 		bg: prep(`INSERT OR IGNORE INTO book_genres (book_id, genre_id) VALUES (?, ?)`),
 		bk: prep(`INSERT OR IGNORE INTO book_keywords (book_id, keyword_id) VALUES (?, ?)`),
@@ -165,17 +167,22 @@ func (im *ImportSession) Add(b *BookInput) error {
 		return fmt.Errorf("folder %q: %w", b.Folder, err)
 	}
 
+	series := b.seriesRefs()
+	primary := SeriesRef{}
+	if len(series) > 0 {
+		primary = series[0]
+	}
 	var seriesID any
-	if b.Series != "" {
-		id, err := lookup(im.series, b.Series, im.stmts.series)
+	if primary.Title != "" {
+		id, err := lookup(im.series, primary.Title, im.stmts.series)
 		if err != nil {
-			return fmt.Errorf("series %q: %w", b.Series, err)
+			return fmt.Errorf("series %q: %w", primary.Title, err)
 		}
 		seriesID = id
 	}
 	var seriesNum any
-	if b.SeriesNum > 0 {
-		seriesNum = b.SeriesNum
+	if primary.SeqNumber > 0 {
+		seriesNum = primary.SeqNumber
 	}
 	var year any
 	if b.Year > 0 {
@@ -190,6 +197,15 @@ func (im *ImportSession) Add(b *BookInput) error {
 	bookID, err := res.LastInsertId()
 	if err != nil {
 		return err
+	}
+	for position, ref := range series {
+		id, err := lookup(im.series, ref.Title, im.stmts.series)
+		if err != nil {
+			return err
+		}
+		if _, err := im.stmts.bs.Exec(bookID, id, ref.SeqNumber, position); err != nil {
+			return err
+		}
 	}
 
 	for _, a := range b.Authors {
@@ -257,9 +273,9 @@ func (im *ImportSession) Finish() (ImportStats, error) {
 		       coalesce((SELECT group_concat(trim(a.last_name || ' ' || a.first_name || ' ' || a.middle_name), ' ')
 		                 FROM book_authors ba JOIN authors a ON a.id = ba.author_id
 		                 WHERE ba.book_id = b.id), ''),
-		       coalesce(s.title, '')
-		FROM books b LEFT JOIN series s ON s.id = b.series_id
-		WHERE b.deleted = 0`); err != nil {
+		       coalesce((SELECT group_concat(s.title, ' ') FROM book_series bs JOIN series s ON s.id = bs.series_id
+                          WHERE bs.book_id = b.id), '')
+		FROM books b WHERE b.deleted = 0`); err != nil {
 		return im.stats, fmt.Errorf("search index: %w", err)
 	}
 

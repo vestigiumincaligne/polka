@@ -1,7 +1,21 @@
 package store
 
 // The schema version is stored in PRAGMA user_version.
-const schemaVersion = 4
+const schemaVersion = 5
+
+// v5: a book may belong to several series. Keep books.series_id/series_num
+// as the primary series for existing cards and recommendations.
+const schemaV5 = `
+CREATE TABLE IF NOT EXISTS book_series (
+	book_id    INTEGER NOT NULL,
+	series_id  INTEGER NOT NULL,
+	series_num INTEGER NOT NULL DEFAULT 0,
+	position   INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (book_id, series_id)
+) WITHOUT ROWID;
+INSERT OR IGNORE INTO book_series (book_id, series_id, series_num)
+SELECT id, series_id, coalesce(series_num, 0) FROM books WHERE series_id IS NOT NULL;
+`
 
 // v4: KOReader partial-MD5 digests of served book files — the bridge
 // between kosync documents and catalog books. Recomputed lazily (on
@@ -138,6 +152,7 @@ var schemaIndexes = []string{
 	`CREATE INDEX IF NOT EXISTS idx_book_authors_author ON book_authors (author_id, book_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_book_genres_genre ON book_genres (genre_id, book_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_book_keywords_keyword ON book_keywords (keyword_id, book_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_book_series_series ON book_series (series_id, book_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_authors_name ON authors (last_name, first_name)`,
 	`CREATE INDEX IF NOT EXISTS idx_books_file_hash ON books (file_hash) WHERE file_hash != ''`,
 	`CREATE INDEX IF NOT EXISTS idx_books_content_hash ON books (content_hash) WHERE content_hash != ''`,

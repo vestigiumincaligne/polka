@@ -87,77 +87,94 @@ func titles(books []Book) []string {
 	return out
 }
 
-func TestMigrateFromV1(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "old.db")
-	db, err := sqlitedrv.Open(path, sqlitedrv.Options{WAL: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A v1 database: the schema before duplicate hashes and ISBN existed.
-	legacy := schemaV1
-	for _, line := range []string{
-		"\tfile_hash    TEXT NOT NULL DEFAULT '',\n",
-		"\tcontent_hash TEXT NOT NULL DEFAULT '',\n",
-		"\tisbn         TEXT NOT NULL DEFAULT ''\n",
-	} {
-		if !strings.Contains(legacy, line) {
-			t.Fatalf("schemaV1 changed, adjust the test: %q", line)
-		}
-		legacy = strings.Replace(legacy, line, "", 1)
-	}
-	legacy = strings.Replace(legacy, "\tdeleted    INTEGER NOT NULL DEFAULT 0,\n", "\tdeleted    INTEGER NOT NULL DEFAULT 0\n", 1)
-	// v1 databases had no digests table either (added in v4).
-	digests := legacy[strings.Index(legacy, "-- KOReader"):strings.Index(legacy, "CREATE VIRTUAL TABLE book_search")]
-	if digests == "" {
-		t.Fatal("schemaV1 changed: digests block not found")
-	}
-	legacy = strings.Replace(legacy, digests, "", 1)
-	if _, err := db.Exec(legacy); err != nil {
-		t.Fatalf("legacy schema: %v", err)
-	}
-	if _, err := db.Exec(`INSERT INTO folders (id, name) VALUES (1, 'a.zip');
-		INSERT INTO books (title, folder_id, file) VALUES ('Старая книга', 1, '1')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(`PRAGMA user_version = 1`); err != nil {
-		t.Fatal(err)
-	}
-	db.Close()
+func TestMigrateFromV1V2V3(t *testing.T) {
+	for _, startVersion := range []int{1, 2, 3} {
+		t.Run(fmt.Sprintf("v%d", startVersion), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "old.db")
+			db, err := sqlitedrv.Open(path, sqlitedrv.Options{WAL: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Build a v1 schema, then apply the historical migrations needed to
+			// represent each later starting version.
+			legacy := schemaV1
+			for _, line := range []string{
+				"\tfile_hash    TEXT NOT NULL DEFAULT '',\n",
+				"\tcontent_hash TEXT NOT NULL DEFAULT '',\n",
+				"\tisbn         TEXT NOT NULL DEFAULT ''\n",
+			} {
+				if !strings.Contains(legacy, line) {
+					t.Fatalf("schemaV1 changed, adjust the test: %q", line)
+				}
+				legacy = strings.Replace(legacy, line, "", 1)
+			}
+			legacy = strings.Replace(legacy, "\tdeleted    INTEGER NOT NULL DEFAULT 0,\n", "\tdeleted    INTEGER NOT NULL DEFAULT 0\n", 1)
+			// v1 databases had no digests table either (added in v4).
+			digests := legacy[strings.Index(legacy, "-- KOReader"):strings.Index(legacy, "CREATE VIRTUAL TABLE book_search")]
+			if digests == "" {
+				t.Fatal("schemaV1 changed: digests block not found")
+			}
+			legacy = strings.Replace(legacy, digests, "", 1)
+			if _, err := db.Exec(legacy); err != nil {
+				t.Fatalf("legacy schema: %v", err)
+			}
+			if startVersion >= 2 {
+				if _, err := db.Exec(schemaV2); err != nil {
+					t.Fatalf("v2 schema: %v", err)
+				}
+			}
+			if startVersion >= 3 {
+				if _, err := db.Exec(schemaV3); err != nil {
+					t.Fatalf("v3 schema: %v", err)
+				}
+			}
+			if _, err := db.Exec(`INSERT INTO folders (id, name) VALUES (1, 'a.zip');
+		INSERT INTO series (id, title) VALUES (1, 'Старая серия');
+		INSERT INTO books (title, series_id, series_num, folder_id, file) VALUES ('Старая книга', 1, 8, 1, '1')`); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, startVersion)); err != nil {
+				t.Fatal(err)
+			}
+			db.Close()
 
-	st, err := Open(path)
-	if err != nil {
-		t.Fatalf("open legacy db: %v", err)
-	}
-	defer st.Close()
-	var version int
-	st.DB().QueryRow(`PRAGMA user_version`).Scan(&version)
-	if version != schemaVersion {
-		t.Errorf("user_version = %d, want %d", version, schemaVersion)
-	}
-	var hash, isbn string
-	if err := st.DB().QueryRow(`SELECT file_hash, isbn FROM books`).Scan(&hash, &isbn); err != nil {
-		t.Errorf("new columns missing after migration: %v", err)
-	}
-	if err := st.SetBookDigest(context.Background(), strings.Repeat("a", 32), 1); err != nil {
-		t.Errorf("book_digests missing after migration: %v", err)
-	}
-	ctx := context.Background()
-	if n, _ := st.BookCount(ctx); n != 1 {
-		t.Errorf("legacy data lost: %d books", n)
-	}
-	// The migrated database accepts new-style writes.
-	if _, err := st.AddBook(ctx, &BookInput{Title: "Новая", Folder: "a.zip", File: "2", Ext: "fb2", ISBN: "978-5-17-080090-2"}); err != nil {
-		t.Errorf("AddBook after migration: %v", err)
-	}
-	if books, _ := st.SearchByISBN(ctx, "9785170800902"); len(books) != 1 {
-		t.Errorf("isbn index after migration: %v", books)
-	}
-	// Reopening is a no-op.
-	st.Close()
-	if st2, err := Open(path); err != nil {
-		t.Errorf("reopen: %v", err)
-	} else {
-		st2.Close()
+			st, err := Open(path)
+			if err != nil {
+				t.Fatalf("open legacy db: %v", err)
+			}
+			defer st.Close()
+			var version int
+			st.DB().QueryRow(`PRAGMA user_version`).Scan(&version)
+			if version != schemaVersion {
+				t.Errorf("user_version = %d, want %d", version, schemaVersion)
+			}
+			var hash, isbn string
+			if err := st.DB().QueryRow(`SELECT file_hash, isbn FROM books`).Scan(&hash, &isbn); err != nil {
+				t.Errorf("new columns missing after migration: %v", err)
+			}
+			if err := st.SetBookDigest(context.Background(), strings.Repeat("a", 32), 1); err != nil {
+				t.Errorf("book_digests missing after migration: %v", err)
+			}
+			ctx := context.Background()
+			if n, _ := st.BookCount(ctx); n != 1 {
+				t.Errorf("legacy data lost: %d books", n)
+			}
+			if refs, err := st.BookSeries(ctx, 1); err != nil || len(refs) != 1 || refs[0].Title != "Старая серия" || refs[0].SeqNumber != 8 {
+				t.Errorf("legacy series not backfilled: %+v, %v", refs, err)
+			}
+			if _, err := st.AddBook(ctx, &BookInput{Title: "Новая", Folder: "a.zip", File: "2", Ext: "fb2", ISBN: "978-5-17-080090-2"}); err != nil {
+				t.Errorf("AddBook after migration: %v", err)
+			}
+			if books, _ := st.SearchByISBN(ctx, "9785170800902"); len(books) != 1 {
+				t.Errorf("isbn index after migration: %v", books)
+			}
+			st.Close()
+			if st2, err := Open(path); err != nil {
+				t.Errorf("reopen: %v", err)
+			} else {
+				st2.Close()
+			}
+		})
 	}
 }
 

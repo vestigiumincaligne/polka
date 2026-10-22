@@ -61,18 +61,24 @@ type SeriesEntry struct {
 
 var ErrNotFound = errors.New("not found")
 
-const bookColumns = `
+const bookIdentityColumns = `
 	b.id,
 	b.title,
 	coalesce((SELECT group_concat(trim(a.last_name || ' ' || a.first_name), ', ')
 	          FROM book_authors ba JOIN authors a ON a.id = ba.author_id
 	          WHERE ba.book_id = b.id), ''),
-	coalesce(s.title, ''),
-	coalesce(b.series_num, 0),
+`
+
+const bookMetadataColumns = `
 	coalesce(b.year, 0),
 	b.lib_rate,
 	b.ext,
 	b.size`
+
+const bookColumns = bookIdentityColumns + `
+	coalesce(s.title, ''),
+	coalesce(b.series_num, 0),
+` + bookMetadataColumns
 
 const bookFrom = ` FROM books b LEFT JOIN series s ON s.id = b.series_id`
 
@@ -246,7 +252,8 @@ func (s *Store) SearchSeries(ctx context.Context, query string, limit int) ([]Se
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT s.id, s.title,
-		       (SELECT count(*) FROM books b WHERE b.series_id = s.id AND b.deleted = 0)
+		       (SELECT count(*) FROM book_series bs JOIN books b ON b.id = bs.book_id
+                 WHERE bs.series_id = s.id AND b.deleted = 0)
 		FROM series s
 		WHERE s.id IN (SELECT rowid FROM series_search WHERE series_search MATCH ?)
 		ORDER BY s.title
@@ -293,7 +300,9 @@ func (s *Store) SeriesBooks(ctx context.Context, seriesID int64) ([]Book, string
 	if err != nil {
 		return nil, "", err
 	}
-	books, err := s.queryBooks(ctx, `b.series_id = ?`, `b.series_num, b.title`, 0, 0, seriesID)
+	books, err := s.scanBooks(ctx, `SELECT`+bookIdentityColumns+`s.title, bs.series_num,`+bookMetadataColumns+`
+        FROM book_series bs JOIN books b ON b.id = bs.book_id JOIN series s ON s.id = bs.series_id
+        WHERE bs.series_id = ? AND b.deleted = 0 ORDER BY bs.series_num, b.title`, seriesID)
 	return books, title, err
 }
 
@@ -488,12 +497,9 @@ func (s *Store) BookDetails(ctx context.Context, bookID int64) (*BookDetails, er
 		return nil, err
 	}
 
-	if d.SeriesTitle != "" {
-		var sid int64
-		if err := s.db.QueryRowContext(ctx,
-			`SELECT coalesce(series_id, 0) FROM books WHERE id = ?`, bookID).Scan(&sid); err == nil && sid > 0 {
-			d.Series = append(d.Series, SeriesRef{ID: sid, Title: d.SeriesTitle, SeqNumber: d.SeqNumber})
-		}
+	d.Series, err = s.BookSeries(ctx, bookID)
+	if err != nil {
+		return nil, err
 	}
 
 	grows, err := s.db.QueryContext(ctx, `
@@ -579,7 +585,8 @@ func (s *Store) AuthorsByPrefix(ctx context.Context, lo, hi string, limit, offse
 func (s *Store) SeriesByPrefix(ctx context.Context, lo, hi string, limit, offset int) ([]SeriesEntry, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT s.id, s.title,
-		       (SELECT count(*) FROM books b WHERE b.series_id = s.id AND b.deleted = 0)
+		       (SELECT count(*) FROM book_series bs JOIN books b ON b.id = bs.book_id
+                 WHERE bs.series_id = s.id AND b.deleted = 0)
 		FROM series s
 		WHERE s.title >= ? AND s.title < ?
 		ORDER BY s.title
