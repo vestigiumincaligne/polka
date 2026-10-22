@@ -118,3 +118,25 @@
   background: var(--accent, #ffd24c);
   border-radius: 0 3px 3px 0;
 }
+
+.book-card--list {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.book-card--list .book-card__cover-link {
+  width: 48px;
+  height: 72px;
+  aspect-ratio: auto;
+}
+
+.book-card--list .book-card__cover-fallback {
+  font-size: 15px;
+}
+
+.book-card--list .book-card__title {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}

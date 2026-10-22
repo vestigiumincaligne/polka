@@ -134,8 +134,11 @@ func TestAPIEndToEnd(t *testing.T) {
 		m := sh.(map[string]any)
 		if m["id"] == "top_rated" && len(m["books"].([]any)) == 1 {
 			book := m["books"].([]any)[0].(map[string]any)
-			if book["Title"] != "Война и мир" || book["AuthorsNames"] != "Толстой Лев" {
+			if book["Title"] != "Война и мир" || book["AuthorsNames"] != "Толстой Лев" || book["Lang"] != "ru" {
 				t.Errorf("book json = %v", book)
+			}
+			if refs, ok := book["Authors"].([]any); !ok || len(refs) != 1 || refs[0].(map[string]any)["AuthorID"] == nil {
+				t.Errorf("book author references = %v", book["Authors"])
 			}
 			found = true
 		}
@@ -153,6 +156,11 @@ func TestAPIEndToEnd(t *testing.T) {
 	if len(titles) != 1 {
 		t.Fatalf("titlesList = %v", titles)
 	}
+	titleBook := titles[0].(map[string]any)
+	structuredAuthors, _ := titleBook["Authors"].([]any)
+	if len(structuredAuthors) != 1 || structuredAuthors[0].(map[string]any)["Name"] != "Толстой Лев" || titleBook["Lang"] == nil {
+		t.Errorf("list book author/language payload = %v", titleBook)
+	}
 	authors := getJSON(t, ts.URL+"/main/getBooks/getSearchAuthors?search=толст")["authorsList"].([]any)
 	if len(authors) != 1 || authors[0].(map[string]any)["Books"].(float64) != 1 {
 		t.Errorf("authorsList = %v", authors)
@@ -167,6 +175,18 @@ func TestAPIEndToEnd(t *testing.T) {
 	ab := getJSON(t, ts.URL+"/main/getBooks/getSearchAuthorBooks?selectedItemID="+itoa(authorID))
 	if ab["title"] != "Толстой Лев" || len(ab["titlesList"].([]any)) != 1 {
 		t.Errorf("author books = %v", ab)
+	}
+	if refs := ab["titlesList"].([]any)[0].(map[string]any)["Authors"].([]any); len(refs) != 1 {
+		t.Errorf("author page references = %v", refs)
+	}
+	seriesID := int(series[0].(map[string]any)["SeriesID"].(float64))
+	sb := getJSON(t, ts.URL+"/main/getBooks/getSearchSeriesBooks?selectedItemID="+itoa(seriesID))
+	if books := sb["titlesList"].([]any); len(books) != 1 || books[0].(map[string]any)["Lang"] != "ru" {
+		t.Errorf("series books = %v", sb)
+	}
+	shelf := getJSON(t, ts.URL+"/main/getBooks/getShelfBooks?shelfId=newest&limit=1")
+	if books := shelf["titlesList"].([]any); len(books) != 1 || books[0].(map[string]any)["Authors"] == nil {
+		t.Errorf("shelf books = %v", shelf)
 	}
 
 	// Book card: annotation and publication data from the FB2 in the archive

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import BookCard from "../components/BookCard";
 import Shelf from "../components/Shelf";
+import { readBookView, writeBookView } from "../bookView";
 import {
   fetchCatalogShelves,
   fetchSearchAuthors,
@@ -31,6 +32,11 @@ const SearchPage = ({ config }) => {
   const [stats, setStats] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [listView, setListView] = useState(() => readBookView() === "list");
+  const setView = (list) => {
+    setListView(list);
+    writeBookView(list ? "list" : "grid");
+  };
 
   const enabled = query.trim().length >= 3 || Boolean(groupId);
 
@@ -191,14 +197,32 @@ const SearchPage = ({ config }) => {
       {enabled && loading && <div className="search-page__loader">{t("loading")}</div>}
 
       {enabled && !loading && scope === "bookTitles" && (
-        <div className="search-page__grid">
-          {results.map((book) => (
-            <BookCard key={book.BookID} book={book} />
-          ))}
-          {results.length === 0 && (
-            <div className="search-page__empty">{t("search.noBooks")}</div>
-          )}
-        </div>
+        <>
+          <div className="search-page__views" role="group" aria-label={t("booklist.view")}>
+            <button
+              type="button"
+              className={`btn ${!listView ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setView(false)}
+            >
+              {t("booklist.grid")}
+            </button>
+            <button
+              type="button"
+              className={`btn ${listView ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setView(true)}
+            >
+              {t("booklist.list")}
+            </button>
+          </div>
+          <div className={`search-page__grid ${listView ? "search-page__grid--list" : ""}`}>
+            {results.map((book) => (
+              <BookCard key={book.BookID} book={book} layout={listView ? "list" : "grid"} />
+            ))}
+            {results.length === 0 && (
+              <div className="search-page__empty">{t("search.noBooks")}</div>
+            )}
+          </div>
+        </>
       )}
 
       {enabled && !loading && scope === "authors" && (

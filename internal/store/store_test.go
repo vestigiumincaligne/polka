@@ -294,6 +294,9 @@ func TestSearch(t *testing.T) {
 	if err != nil || name != "Толстой Лев" || strings.Join(titles(books), ",") != "Война и мир,Анна Каренина" {
 		t.Errorf("author books: %v %q %v", titles(books), name, err)
 	}
+	if len(books) == 0 || len(books[0].BookAuthors) != 1 || books[0].BookAuthors[0].AuthorID == 0 || books[0].BookAuthors[0].Name != "Толстой Лев" || books[0].Lang != "ru" {
+		t.Errorf("author book structured authors/language: %+v", books)
+	}
 	if _, _, err := st.AuthorBooks(ctx, 99999); !errors.Is(err, ErrNotFound) {
 		t.Errorf("unknown author: %v", err)
 	}
@@ -340,8 +343,8 @@ func TestBookDetailsAndFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Title != "Война и мир" || d.AuthorNames != "Толстой Лев" || d.Folder != "one.zip" || d.File != "1000" ||
-		d.Year != 1900 || d.Size != 100 || len(d.Authors) != 1 || d.Authors[0].Last != "Толстой" ||
+	if d.Title != "Война и мир" || d.AuthorNames != "Толстой Лев" || len(d.Authors) != 1 || len(d.Book.BookAuthors) != 1 || d.Book.BookAuthors[0].AuthorID != d.Authors[0].ID || d.Folder != "one.zip" || d.File != "1000" ||
+		d.Year != 1900 || d.Size != 100 || d.Authors[0].Last != "Толстой" ||
 		len(d.Series) != 1 || d.Series[0].Title != "Классика" || d.Series[0].SeqNumber != 1 ||
 		len(d.Genres) != 1 || d.Genres[0] != "prose_classic" {
 		t.Errorf("details: %+v", d)
@@ -644,5 +647,21 @@ func TestSearchRanking(t *testing.T) {
 	}
 	if page1[0].Title != "Дюна" || page2[0].Title == "Дюна" {
 		t.Errorf("opds order: %v / %v", titles(page1), titles(page2))
+	}
+}
+
+func TestStructuredBookAuthorNameWithComma(t *testing.T) {
+	st, ids := newLibrary(t)
+	ctx := context.Background()
+	_, err := st.DB().Exec(`UPDATE authors SET last_name = 'Name, With comma' WHERE id = (SELECT author_id FROM book_authors WHERE book_id = ? LIMIT 1)`, ids["Война и мир"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	books, err := st.BooksByIDs(ctx, []int64{ids["Война и мир"]})
+	if err != nil || len(books) != 1 || len(books[0].BookAuthors) != 1 {
+		t.Fatalf("books = %+v, err = %v", books, err)
+	}
+	if books[0].BookAuthors[0].Name != "Name, With comma Лев" || books[0].AuthorNames != "Name, With comma Лев" {
+		t.Errorf("structured/legacy author names = %+v / %q", books[0].BookAuthors, books[0].AuthorNames)
 	}
 }

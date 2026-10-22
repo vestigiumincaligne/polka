@@ -20,6 +20,8 @@ func bookJSON(b store.Book) map[string]any {
 		"BookID":       b.ID,
 		"Title":        b.Title,
 		"AuthorsNames": b.AuthorNames,
+		"Authors":      b.BookAuthors,
+		"Lang":         b.Lang,
 		"SeriesTitle":  b.SeriesTitle,
 		"SeqNumber":    b.SeqNumber,
 		"Year":         b.Year,

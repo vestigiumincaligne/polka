@@ -158,3 +158,15 @@
     gap: 16px 10px;
   }
 }
+
+.search-page__views {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.search-page__grid--list {
+  grid-template-columns: 1fr;
+}
