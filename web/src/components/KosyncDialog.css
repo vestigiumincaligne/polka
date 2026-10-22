@@ -7,6 +7,8 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .kosync__card {
@@ -17,6 +19,10 @@
   padding: 22px 24px;
   max-width: 440px;
   width: 100%;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 }
 
@@ -55,6 +61,7 @@
 
 .kosync__row input {
   flex: 1;
+  min-width: 0;
   font: inherit;
   font-size: 14px;
   padding: 8px 12px;

@@ -7,6 +7,23 @@ vi.mock("../api/kosync", () => ({ fetchKosync: vi.fn(), setKosyncPassword: vi.fn
 import { fetchKosync, setKosyncPassword } from "../api/kosync";
 
 describe("KosyncDialog", () => {
+  it("renders outside a clipping ancestor", async () => {
+    fetchKosync.mockResolvedValue({ enabled: false, login: "reader" });
+    const clippingAncestor = document.createElement("div");
+    clippingAncestor.style.overflow = "hidden";
+    document.body.appendChild(clippingAncestor);
+
+    try {
+      render(<KosyncDialog onClose={() => {}} />, { container: clippingAncestor });
+      const dialog = await screen.findByRole("dialog", { name: t("kosync.title") });
+
+      expect(dialog.closest(".kosync__overlay").parentElement).toBe(document.body);
+      expect(clippingAncestor.contains(dialog)).toBe(false);
+    } finally {
+      clippingAncestor.remove();
+    }
+  });
+
   it("shows the setup steps and saves a device password", async () => {
     fetchKosync.mockResolvedValue({ enabled: false, login: "reader" });
     setKosyncPassword.mockResolvedValue({ enabled: true });

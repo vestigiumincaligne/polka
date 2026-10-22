@@ -1,5 +1,6 @@
 import { t } from "../i18n";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { fetchKosync, setKosyncPassword } from "../api/kosync";
 import "./KosyncDialog.css";
 
@@ -44,9 +45,15 @@ const KosyncDialog = ({ onClose }) => {
       .catch(() => setMsg({ ok: false, text: t("kosync.fail") }));
   };
 
-  return (
+  return createPortal(
     <div className="kosync__overlay" onClick={onClose} role="presentation">
-      <div className="kosync__card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t("kosync.title")}>
+      <div
+        className="kosync__card"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("kosync.title")}
+      >
         <h2>{t("kosync.title")}</h2>
         <p className="kosync__hint">{t("kosync.hint")}</p>
         <ol className="kosync__steps">
@@ -87,7 +94,8 @@ const KosyncDialog = ({ onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
