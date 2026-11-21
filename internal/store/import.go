@@ -241,16 +241,30 @@ func (im *ImportSession) Finish() (ImportStats, error) {
 		return im.stats, err
 	}
 
+	if err := im.s.rebuildSearch(im.ctx); err != nil {
+		return im.stats, err
+	}
+
+	im.stats.Authors = len(im.authors)
+	im.stats.Series = len(im.series)
+	im.stats.Genres = len(im.genres)
+	im.stats.Duration = time.Since(im.start)
+	return im.stats, nil
+}
+
+// rebuildSearch (re)creates the schema indexes and rebuilds the FTS search
+// indexes from the catalog tables. Used after a bulk import and an update.
+func (s *Store) rebuildSearch(ctx context.Context) error {
 	for _, idx := range schemaIndexes {
-		if _, err := im.s.db.ExecContext(im.ctx, idx); err != nil {
-			return im.stats, fmt.Errorf("index: %w", err)
+		if _, err := s.db.ExecContext(ctx, idx); err != nil {
+			return fmt.Errorf("index: %w", err)
 		}
 	}
 
-	if _, err := im.s.db.ExecContext(im.ctx, `DELETE FROM book_search`); err != nil {
-		return im.stats, err
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM book_search`); err != nil {
+		return err
 	}
-	if _, err := im.s.db.ExecContext(im.ctx, `
+	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO book_search (rowid, title, authors, series)
 		SELECT b.id,
 		       b.title,
@@ -260,35 +274,28 @@ func (im *ImportSession) Finish() (ImportStats, error) {
 		       coalesce(s.title, '')
 		FROM books b LEFT JOIN series s ON s.id = b.series_id
 		WHERE b.deleted = 0`); err != nil {
-		return im.stats, fmt.Errorf("search index: %w", err)
+		return fmt.Errorf("search index: %w", err)
 	}
 
-	if _, err := im.s.db.ExecContext(im.ctx, `DELETE FROM authors_search`); err != nil {
-		return im.stats, err
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM authors_search`); err != nil {
+		return err
 	}
-	if _, err := im.s.db.ExecContext(im.ctx, `
+	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO authors_search (rowid, name)
 		SELECT id, trim(last_name || ' ' || first_name || ' ' || middle_name) FROM authors`); err != nil {
-		return im.stats, fmt.Errorf("authors search index: %w", err)
+		return fmt.Errorf("authors search index: %w", err)
 	}
 
-	if _, err := im.s.db.ExecContext(im.ctx, `DELETE FROM series_search`); err != nil {
-		return im.stats, err
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM series_search`); err != nil {
+		return err
 	}
-	if _, err := im.s.db.ExecContext(im.ctx, `
+	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO series_search (rowid, title) SELECT id, title FROM series`); err != nil {
-		return im.stats, fmt.Errorf("series search index: %w", err)
+		return fmt.Errorf("series search index: %w", err)
 	}
 
-	if _, err := im.s.db.ExecContext(im.ctx, `ANALYZE`); err != nil {
-		return im.stats, err
-	}
-
-	im.stats.Authors = len(im.authors)
-	im.stats.Series = len(im.series)
-	im.stats.Genres = len(im.genres)
-	im.stats.Duration = time.Since(im.start)
-	return im.stats, nil
+	_, err := s.db.ExecContext(ctx, `ANALYZE`)
+	return err
 }
 
 // Abort rolls back the uncommitted part of the import.

@@ -207,3 +207,52 @@ func TestImportScale(t *testing.T) {
 	}
 	t.Logf("db size: %d MB", dbSize/1024/1024)
 }
+
+func TestUpdateInpxKeepsIDsAndSkipsMissingArchives(t *testing.T) {
+	dir := t.TempDir()
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	ctx := context.Background()
+
+	first := makeInpx(t, filepath.Join(dir), "", map[string][]string{
+		"arch-001.inp": {record("Пушкин,Александр,Сергеевич", "poetry", "Евгений Онегин", "Классика", "1", "f1", "fb2")},
+	})
+	st, err := store.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, err := ImportInpx(ctx, log, st, first, nil); err != nil {
+		t.Fatal(err)
+	}
+	var oldID int64
+	st.DB().QueryRow(`SELECT id FROM books WHERE file = 'f1'`).Scan(&oldID)
+
+	newerDir := filepath.Join(dir, "newer")
+	os.MkdirAll(newerDir, 0o755)
+	newer := makeInpx(t, newerDir, "", map[string][]string{
+		"arch-001.inp": {
+			record("Пушкин,Александр,Сергеевич", "poetry", "Евгений Онегин", "Классика", "1", "f1", "fb2"),
+			record("Пушкин,Александр,Сергеевич", "poetry", "Пиковая дама", "", "", "f2", "fb2"),
+		},
+		"arch-002.inp": {record("Гоголь,Николай,", "prose_classic", "Нос", "", "", "f3", "fb2")},
+	})
+	notDownloaded := func(folder string) bool { return !strings.HasPrefix(folder, "arch-002") }
+
+	stats, err := UpdateInpx(ctx, log, st, newer, false, notDownloaded, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Unchanged != 1 || stats.Added != 1 || stats.Skipped != 1 {
+		t.Fatalf("stats = %+v", stats)
+	}
+	var id int64
+	st.DB().QueryRow(`SELECT id FROM books WHERE file = 'f1'`).Scan(&id)
+	if id != oldID {
+		t.Errorf("book id changed: %d -> %d", oldID, id)
+	}
+	var n int
+	st.DB().QueryRow(`SELECT count(*) FROM books WHERE file = 'f3'`).Scan(&n)
+	if n != 0 {
+		t.Errorf("book from a missing archive was imported")
+	}
+}

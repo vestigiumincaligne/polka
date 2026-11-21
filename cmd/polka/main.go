@@ -32,7 +32,8 @@ const usage = `polka — сервер домашней библиотеки
 Использование:
   polka [serve] [флаги]          запустить сервер (по умолчанию)
   polka import --inpx <файл>     импортировать inpx-каталог
-      --replace                  заменить существующую коллекцию
+      --replace                  заменить существующую коллекцию (ID книг назначаются заново)
+      --update [--dry-run]       обновить коллекцию, сохранив ID книг
       (путь можно указать и позиционным аргументом)
   polka passwd <логин> <пароль>  сменить пароль пользователя (восстановление доступа)
   polka collections import <файл.json>…  добавить/обновить подборки книг
@@ -196,10 +197,12 @@ func runPasswd(args []string) error {
 }
 
 func runImport(log *slog.Logger, args []string) error {
-	var replace bool
+	var replace, update, dryRun bool
 	var inpxFlag string
 	cfg, rest, err := config.Load(args, func(fs *flag.FlagSet) {
 		fs.BoolVar(&replace, "replace", false, "replace existing collection")
+		fs.BoolVar(&update, "update", false, "update the existing collection, keeping book ids")
+		fs.BoolVar(&dryRun, "dry-run", false, "with --update: report changes without writing them")
 		fs.StringVar(&inpxFlag, "inpx", "", "path to the .inpx catalog file")
 	})
 	if err != nil {
@@ -211,6 +214,38 @@ func runImport(log *slog.Logger, args []string) error {
 	}
 	if inpxPath == "" {
 		return errors.New("укажите inpx-файл: polka import --inpx <файл.inpx>")
+	}
+	if update && replace {
+		return errors.New("--update и --replace несовместимы")
+	}
+	if dryRun && !update {
+		return errors.New("--dry-run работает только вместе с --update")
+	}
+
+	if update {
+		st, err := store.Open(cfg.DBPath())
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+		defer st.Close()
+		var hasArchive func(string) bool
+		if lib := library.New(cfg.LibraryDir); lib != nil {
+			hasArchive = lib.HasArchive // skip records whose archive is not downloaded yet
+		} else {
+			log.Warn("no --library-dir: archives are not checked, every record is applied")
+		}
+		stats, err := importer.UpdateInpx(context.Background(), log, st, inpxPath, dryRun, hasArchive, nil)
+		if err != nil {
+			return err
+		}
+		msg := "update done"
+		if dryRun {
+			msg = "dry run (nothing written)"
+		}
+		log.Info(msg, "added", stats.Added, "updated", stats.Updated, "moved", stats.Moved,
+			"unchanged", stats.Unchanged, "skipped_no_archive", stats.Skipped, "orphans_removed", stats.Orphans,
+			"duration", stats.Duration.Round(time.Millisecond))
+		return nil
 	}
 
 	if replace {
