@@ -57,6 +57,23 @@
   backdrop-filter: blur(6px);
 }
 
+.book-card__read-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent, #f4c430);
+  color: #1d1d1f;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
 .book-card__meta {
   display: flex;
   flex-direction: column;

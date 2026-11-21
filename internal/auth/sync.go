@@ -142,12 +142,16 @@ func (s *Service) MergeState(ctx context.Context, userID int64, in *SyncState) e
 
 	for _, ls := range in.Lists {
 		var listID int64
-		if ls.Builtin == BuiltinWishlist {
-			wl, err := s.Wishlist(ctx, userID)
+		if ls.Builtin == BuiltinWishlist || ls.Builtin == BuiltinRead {
+			name := "Хочу прочитать"
+			if ls.Builtin == BuiltinRead {
+				name = readListName
+			}
+			bl, err := s.builtinList(ctx, userID, ls.Builtin, name)
 			if err != nil {
 				return err
 			}
-			listID = wl.ID
+			listID = bl.ID
 		} else {
 			err := s.db.QueryRowContext(ctx,
 				`SELECT id FROM lists WHERE user_id = ? AND name = ?`, userID, ls.Name).Scan(&listID)

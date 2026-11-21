@@ -224,3 +224,47 @@ func (s *Server) handleWishlistToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]any{"ok": true, "inWishlist": req.Add, "listId": wl.ID})
 }
+
+// POST /api/v1/books/{id}/read {read} — "Read" toggle. Marking a book read
+// also removes it from "Want to read".
+func (s *Server) handleReadToggle(w http.ResponseWriter, r *http.Request) {
+	u := s.requireUser(w, r)
+	if u == nil {
+		return
+	}
+	bookID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	var req struct {
+		Read bool `json:"read"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	rl, err := s.users.SetRead(r.Context(), u.ID, bookID, req.Read)
+	if err != nil {
+		s.listError(w, err)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "read": req.Read, "listId": rl.ID})
+}
+
+// GET /api/v1/read — ids of all books the user marked read (card badges).
+func (s *Server) handleReadIDs(w http.ResponseWriter, r *http.Request) {
+	u := s.requireUser(w, r)
+	if u == nil {
+		return
+	}
+	ids, err := s.users.ReadBookIDs(r.Context(), u.ID)
+	if err != nil {
+		s.apiError(w, err)
+		return
+	}
+	if ids == nil {
+		ids = []int64{}
+	}
+	writeJSON(w, map[string]any{"ids": ids})
+}

@@ -107,6 +107,15 @@ func (s *Server) handleGetHomeShelves(w http.ResponseWriter, r *http.Request) {
 		split := len(out) - len(shelves)
 		out = append(append(append([]map[string]any{}, out[:split]...), cs...), out[split:]...)
 	}
+	// "Read" closes the page: recently marked first.
+	if u := s.currentUser(r); u != nil {
+		if rl, err := s.users.ReadList(r.Context(), u.ID); err == nil {
+			if read := s.listShelf(r, u.ID, rl.ID, "read", limit); read != nil {
+				read["title"] = tr(reqLang(r), "shelf.read")
+				out = append(out, read)
+			}
+		}
+	}
 	writeJSON(w, map[string]any{"shelves": out})
 }
 
@@ -116,7 +125,16 @@ func (s *Server) wishlistShelf(r *http.Request, userID int64, limit int) map[str
 	if err != nil {
 		return nil
 	}
-	ids, err := s.users.ListBookIDs(r.Context(), userID, wl.ID, limit+1, 0)
+	shelf := s.listShelf(r, userID, wl.ID, "wishlist", limit)
+	if shelf != nil {
+		shelf["title"] = wl.Name
+	}
+	return shelf
+}
+
+// listShelf is a shelf of a user list's books (newest first), nil if empty.
+func (s *Server) listShelf(r *http.Request, userID, listID int64, id string, limit int) map[string]any {
+	ids, err := s.users.ListBookIDs(r.Context(), userID, listID, limit+1, 0)
 	if err != nil || len(ids) == 0 {
 		return nil
 	}
@@ -129,7 +147,7 @@ func (s *Server) wishlistShelf(r *http.Request, userID int64, limit int) map[str
 		return nil
 	}
 	return map[string]any{
-		"id": "wishlist", "title": wl.Name, "books": booksJSON(books), "hasMore": hasMore,
+		"id": id, "books": booksJSON(books), "hasMore": hasMore,
 	}
 }
 

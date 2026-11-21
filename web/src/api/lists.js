@@ -38,3 +38,7 @@ export const removeFromList = (listId, bookId) =>
   post(`api/v1/lists/${listId}/books/remove`, { bookId });
 
 export const toggleWishlist = (bookId, add) => post(`api/v1/books/${bookId}/wishlist`, { add });
+
+export const setRead = (bookId, read) => post(`api/v1/books/${bookId}/read`, { read });
+
+export const fetchReadIds = () => api.getJson("api/v1/read");

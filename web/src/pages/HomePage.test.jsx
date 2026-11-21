@@ -63,6 +63,17 @@ describe("HomePage", () => {
     expect(await screen.findByTestId("location")).toHaveTextContent("/lists");
   });
 
+  it("titles the read shelf and sends it to the lists page", async () => {
+    fetchHomeShelves.mockResolvedValue({
+      shelves: [{ id: "read", books: [{ BookID: 2, Title: "Дочитал" }], hasMore: false }],
+    });
+    renderHome({});
+    await screen.findByText("Дочитал");
+    expect(screen.getByText(t("shelf.read"))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: t("shelf.seeAll") }));
+    expect(await screen.findByTestId("location")).toHaveTextContent("/lists");
+  });
+
   it("shows the empty state", async () => {
     fetchHomeShelves.mockResolvedValue({ shelves: [] });
     renderHome({});

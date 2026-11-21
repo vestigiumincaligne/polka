@@ -84,24 +84,7 @@ func (s *Service) CreateList(ctx context.Context, userID int64, name string) (*L
 
 // Wishlist returns the user's built-in list, creating it if needed.
 func (s *Service) Wishlist(ctx context.Context, userID int64) (*List, error) {
-	var l List
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, builtin FROM lists WHERE user_id = ? AND builtin = ?`,
-		userID, BuiltinWishlist).Scan(&l.ID, &l.Name, &l.Builtin)
-	if err == nil {
-		return &l, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
-	}
-	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO lists (user_id, name, builtin) VALUES (?, ?, ?)`,
-		userID, "Хочу прочитать", BuiltinWishlist)
-	if err != nil {
-		return nil, err
-	}
-	id, _ := res.LastInsertId()
-	return &List{ID: id, Name: "Хочу прочитать", Builtin: BuiltinWishlist}, nil
+	return s.builtinList(ctx, userID, BuiltinWishlist, "Хочу прочитать")
 }
 
 // userList checks that the list belongs to the user.

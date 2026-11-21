@@ -99,11 +99,15 @@ func (s *Service) KosyncGet(ctx context.Context, userID int64, document string) 
 // (a device that knows nothing about our chapters reported the position);
 // chapter, position and locator of an existing record are preserved.
 func (s *Service) SaveOverall(ctx context.Context, userID, bookID int64, overall float64) error {
+	before := s.previousOverall(ctx, userID, bookID)
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO reading_progress (user_id, book_id, chapter, position, overall, locator, updated_at)
 		VALUES (?, ?, 0, 0, ?, '', strftime('%Y-%m-%d %H:%M:%f', 'now'))
 		ON CONFLICT (user_id, book_id) DO UPDATE
 		SET overall = excluded.overall, updated_at = excluded.updated_at`,
 		userID, bookID, overall)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.markReadOnCrossing(ctx, userID, bookID, before, overall)
 }

@@ -23,6 +23,7 @@ var serverStrings = map[string]map[string]string{
 	"ru": {
 		"shelf.reading":        "Читаю сейчас",
 		"shelf.wishlist":       "Хочу прочитать",
+		"shelf.read":           "Прочитано",
 		"shelf.offline":        "Доступно офлайн",
 		"shelf.series_next":    "Продолжить серии",
 		"shelf.for_you":        "Для вас",
@@ -52,6 +53,7 @@ var serverStrings = map[string]map[string]string{
 	"en": {
 		"shelf.reading":        "Reading now",
 		"shelf.wishlist":       "Want to read",
+		"shelf.read":           "Read",
 		"shelf.offline":        "Available offline",
 		"shelf.series_next":    "Continue the series",
 		"shelf.for_you":        "For you",
