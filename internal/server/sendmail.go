@@ -122,7 +122,7 @@ func (s *Server) handleSendBook(w http.ResponseWriter, r *http.Request) {
 	if d != nil && d.Title != "" {
 		title = d.Title
 	}
-	name := sanitizeFileName(title) + "." + f.Ext
+	name := bookFileName(partsFromBookFile(f), f.Ext)
 	cfg := s.smtpConfig(r)
 	if err := cfg.Send(to, title, "Polka — "+title, name, data); err != nil {
 		s.log.Warn("send book", "book", bookID, "error", err)

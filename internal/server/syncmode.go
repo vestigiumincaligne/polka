@@ -265,7 +265,10 @@ func (s *Server) syncDownload(w http.ResponseWriter, r *http.Request) {
 			disposition = "inline"
 		}
 		w.Header().Set("Content-Type", contentTypeFor(b.Ext))
-		w.Header().Set("Content-Disposition", fmt.Sprintf("%s; filename=%q", disposition, b.Title+"."+b.Ext))
+		w.Header().Set("Content-Disposition", contentDisposition(disposition, bookFileName(fileNameParts{
+			ID: b.ID, Authors: strings.Split(b.Authors, ", "), Series: b.SeriesTitle,
+			SeqNumber: b.SeqNumber, Title: b.Title,
+		}, b.Ext), idFileName(b.ID, b.Ext)))
 		w.Header().Set("Content-Length", strconv.FormatInt(b.Size, 10))
 		ioCopy(w, rc)
 		return

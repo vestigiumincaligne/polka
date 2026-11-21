@@ -198,7 +198,8 @@ func TestAPIEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Disposition"), "100.fb2") {
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Disposition"), `filename="`+itoa64(bookID)+`.fb2"`) ||
+		!strings.Contains(resp.Header.Get("Content-Disposition"), "filename*=utf-8''") {
 		t.Errorf("fb2 download: %d %s", resp.StatusCode, resp.Header.Get("Content-Disposition"))
 	}
 

@@ -23,12 +23,42 @@ type Book struct {
 
 // BookFile holds the data needed to serve a book file.
 type BookFile struct {
-	ID     int64
-	Title  string
-	Folder string
-	File   string
-	Ext    string
-	Size   int64
+	ID        int64
+	Title     string
+	Folder    string
+	File      string
+	Ext       string
+	Size      int64
+	Authors   []string // "First Last", for download file names
+	Series    string
+	SeqNumber int
+}
+
+// bookFileColumns selects BookFile fields; authors are joined with \x1f.
+const bookFileColumns = `
+		SELECT b.id, b.title, fo.name, b.file, b.ext, b.size,
+		       coalesce(s.title, ''), coalesce(b.series_num, 0),
+		       coalesce((SELECT group_concat(trim(a.first_name || ' ' || a.last_name), char(31))
+		                 FROM book_authors ba JOIN authors a ON a.id = ba.author_id
+		                 WHERE ba.book_id = b.id), '')
+		FROM books b JOIN folders fo ON fo.id = b.folder_id
+		LEFT JOIN series s ON s.id = b.series_id`
+
+type rowScanner interface{ Scan(dest ...any) error }
+
+func scanBookFile(row rowScanner, f *BookFile) error {
+	var authors string
+	if err := row.Scan(&f.ID, &f.Title, &f.Folder, &f.File, &f.Ext, &f.Size,
+		&f.Series, &f.SeqNumber, &authors); err != nil {
+		return err
+	}
+	f.Authors = nil
+	for _, a := range strings.Split(authors, "\x1f") {
+		if a = strings.TrimSpace(a); a != "" {
+			f.Authors = append(f.Authors, a)
+		}
+	}
+	return nil
 }
 
 // BookDetails is the full book card.
@@ -537,11 +567,8 @@ func (s *Store) SampleFolders(ctx context.Context, limit int) ([]string, error) 
 
 func (s *Store) BookFile(ctx context.Context, bookID int64) (*BookFile, error) {
 	f := &BookFile{}
-	err := s.db.QueryRowContext(ctx, `
-		SELECT b.id, b.title, fo.name, b.file, b.ext, b.size
-		FROM books b JOIN folders fo ON fo.id = b.folder_id
-		WHERE b.id = ? AND b.deleted = 0`, bookID).
-		Scan(&f.ID, &f.Title, &f.Folder, &f.File, &f.Ext, &f.Size)
+	err := scanBookFile(s.db.QueryRowContext(ctx,
+		bookFileColumns+` WHERE b.id = ? AND b.deleted = 0`, bookID), f)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
