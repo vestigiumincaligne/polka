@@ -133,7 +133,7 @@ func TestUploadDeleteExport(t *testing.T) {
 	if err != nil || len(zr.File) != 1 {
 		t.Fatalf("export zip: %v, files=%d", err, len(zr.File))
 	}
-	if zr.File[0].Name != "Война и мир.fb2" {
+	if want := itoa64(bookID) + " - Война и мир.fb2"; zr.File[0].Name != want {
 		t.Errorf("export entry name = %q", zr.File[0].Name)
 	}
 

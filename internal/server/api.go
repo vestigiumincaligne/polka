@@ -450,7 +450,8 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 		disposition = "inline" // view in browser (PDF etc.)
 	}
 	w.Header().Set("Content-Type", contentTypeFor(f.Ext))
-	w.Header().Set("Content-Disposition", disposition+`; filename="`+f.File+`.`+f.Ext+`"`)
+	w.Header().Set("Content-Disposition", contentDisposition(disposition,
+		bookFileName(partsFromBookFile(f), f.Ext), idFileName(f.ID, f.Ext)))
 	if size > 0 {
 		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	}
@@ -478,7 +479,8 @@ func (s *Server) handleBookZip(w http.ResponseWriter, r *http.Request) {
 	// small, so buffering is fine.
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
-	entry, err := zw.Create(f.File + "." + f.Ext)
+	name := bookFileName(partsFromBookFile(f), f.Ext)
+	entry, err := zw.Create(name)
 	if err == nil {
 		_, err = io.Copy(entry, rc)
 	}
@@ -492,7 +494,7 @@ func (s *Server) handleBookZip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+f.File+`.`+f.Ext+`.zip"`)
+	w.Header().Set("Content-Disposition", contentDisposition("attachment", name+".zip", idFileName(f.ID, f.Ext+".zip")))
 	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
 	w.Write(buf.Bytes())
 }
@@ -520,7 +522,8 @@ func (s *Server) handleBookCompact(w http.ResponseWriter, r *http.Request) {
 	}
 	compact := library.StripBinaries(data)
 	w.Header().Set("Content-Type", contentTypeFor("fb2"))
-	w.Header().Set("Content-Disposition", `attachment; filename="`+f.File+`.compact.fb2"`)
+	w.Header().Set("Content-Disposition", contentDisposition("attachment",
+		bookFileName(partsFromBookFile(f), "compact.fb2"), idFileName(f.ID, "compact.fb2")))
 	w.Write(compact)
 }
 

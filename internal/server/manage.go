@@ -248,10 +248,7 @@ func sanitizeFileName(name string) string {
 		}
 		return r
 	}, strings.TrimSpace(name))
-	if len(name) > 120 {
-		name = name[:120]
-	}
-	return name
+	return truncateUTF8(name, 120)
 }
 
 // createUnique creates file base.ext; on collision base_2.ext and so on.
@@ -326,7 +323,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 			s.log.Warn("export: skip missing", "book", f.ID, "error", err)
 			continue
 		}
-		name := sanitizeFileName(f.Title)
+		name := bookBaseName(partsFromBookFile(&f))
 		if name == "" {
 			name = f.File
 		}

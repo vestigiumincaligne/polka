@@ -309,10 +309,8 @@ func (s *Store) BookFilesByIDs(ctx context.Context, ids []int64) ([]BookFile, er
 	for i, id := range ids {
 		args[i] = id
 	}
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT b.id, b.title, fo.name, b.file, b.ext, b.size
-		FROM books b JOIN folders fo ON fo.id = b.folder_id
-		WHERE b.deleted = 0 AND b.id IN (`+placeholders+`)`, args...)
+	rows, err := s.db.QueryContext(ctx,
+		bookFileColumns+` WHERE b.deleted = 0 AND b.id IN (`+placeholders+`)`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +319,7 @@ func (s *Store) BookFilesByIDs(ctx context.Context, ids []int64) ([]BookFile, er
 	var files []BookFile
 	for rows.Next() {
 		var f BookFile
-		if err := rows.Scan(&f.ID, &f.Title, &f.Folder, &f.File, &f.Ext, &f.Size); err != nil {
+		if err := scanBookFile(rows, &f); err != nil {
 			return nil, err
 		}
 		files = append(files, f)
