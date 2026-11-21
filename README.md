@@ -139,9 +139,25 @@ Book files may sit in plain folders or inside **ZIP or 7z archives** (the
 usual Flibusta layout, e.g. `f.fb2-…​.7z`) — Polka reads them directly, no
 unpacking needed.
 
-Hundreds of thousands of records import in about a minute. Re-importing
-replaces the catalog but **never touches user data** — accounts, progress,
-ratings and lists live in a separate database and survive re-imports.
+Hundreds of thousands of records import in about a minute.
+
+To apply a newer inpx of the same collection (e.g. a monthly Flibusta update),
+use `--update` instead of `--replace`:
+
+```sh
+polka import --update --dry-run --inpx collection.inpx --data-dir /path/to/data --library-dir /path/to/archives
+polka import --update --inpx collection.inpx --data-dir /path/to/data --library-dir /path/to/archives
+```
+
+`--update` keeps book ids: existing books are matched by their library id and
+file and updated in place, new ones are added, records whose archive is not
+under `--library-dir` yet are skipped, and nothing is deleted. `--dry-run`
+reports what would change and writes nothing.
+
+`--replace` (and *replace existing collection* in the web UI) wipes the catalog
+and numbers the books again. Accounts survive, but reading progress, ratings,
+lists, KOReader sync and cached EPUBs are stored by book id and will then point
+at other books — use it only to switch to a different collection.
 
 ## The desktop apps
 
