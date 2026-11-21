@@ -20,7 +20,7 @@ const formatBytes = (bytes) => {
   return t("book.kb", { n: (bytes / 1024).toFixed(1) });
 };
 
-const BookPage = ({ user, sync }) => {
+const BookPage = ({ user, sync, config }) => {
   const { bookId } = useParams();
   const navigate = useNavigate();
 
@@ -436,6 +436,11 @@ const BookPage = ({ user, sync }) => {
             <a className={`btn ${Ext === ".fb2" || Ext === ".pdf" ? "btn-ghost" : "btn-primary"}`} href={api.fb2Url(BookID)}>
               {t("book.download", { ext: Ext || ".fb2" })}
             </a>
+            {Ext === ".fb2" && config?.epubDownloads && (
+              <a className="btn btn-primary" href={api.epubUrl(BookID)}>
+                {t("book.download", { ext: ".epub" })}
+              </a>
+            )}
             {smtpReady && (
               <button
                 type="button"

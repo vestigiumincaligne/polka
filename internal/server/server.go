@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -191,6 +192,7 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 		// Covers and book files
 		mux.HandleFunc("GET /Images/covers/{id}", s.protected(s.handleCover))
 		mux.HandleFunc("GET /Images/fb2/{id}", s.protected(s.handleBookDownload))
+		mux.HandleFunc("GET /Images/epub/{id}", s.protected(s.handleBookEpub))
 		mux.HandleFunc("GET /Images/zip/{id}", s.protected(s.handleBookZip))
 		mux.HandleFunc("GET /Images/fb2compact/{id}", s.protected(s.handleBookCompact))
 
@@ -263,7 +265,15 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"collectionName": s.st.GetMeta(r.Context(), "collection_name", "Полка"),
 		"numberOfBooks":  count,
+		"epubDownloads":  epubAvailable(),
 	})
+}
+
+// epubAvailable reports whether FB2→EPUB conversion can run (Pandoc on PATH),
+// so the UI offers the EPUB download only where it works.
+func epubAvailable() bool {
+	_, err := exec.LookPath("pandoc")
+	return err == nil
 }
 
 func init() {
