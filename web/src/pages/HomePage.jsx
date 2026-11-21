@@ -8,6 +8,7 @@ import "./HomePage.css";
 const SHELF_TITLES = () => ({
   reading: { title: t("shelf.reading"), subtitle: t("shelf.reading.sub") },
   wishlist: { title: t("shelf.wishlist"), subtitle: t("shelf.wishlist.sub") },
+  read: { title: t("shelf.read"), subtitle: t("shelf.read.sub") },
   offline: { title: t("shelf.offline"), subtitle: t("shelf.offline.sub") },
   series_next: { title: t("shelf.series_next"), subtitle: t("shelf.series_next.sub") },
   for_you: { title: t("shelf.for_you"), subtitle: t("shelf.for_you.sub") },
@@ -112,7 +113,7 @@ const HomePage = ({ config }) => {
               subtitle={meta.subtitle}
               books={shelf.books}
               onSeeAll={
-                shelf.id === "wishlist"
+                shelf.id === "wishlist" || shelf.id === "read"
                   ? () => navigate("/lists")
                   : shelf.hasMore
                     ? () =>

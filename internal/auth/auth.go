@@ -79,7 +79,12 @@ func Open(path string) (*Service, error) {
 		return nil, fmt.Errorf("auth schema: %w", err)
 	}
 	migrateProgress(db)
-	return &Service{db: db}, nil
+	s := &Service{db: db}
+	if err := s.backfillRead(context.Background()); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("read backfill: %w", err)
+	}
+	return s, nil
 }
 
 func (s *Service) Close() error { return s.db.Close() }

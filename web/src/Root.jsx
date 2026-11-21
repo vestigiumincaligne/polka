@@ -14,6 +14,7 @@ import ListsPage from "./pages/ListsPage";
 import SyncPage from "./pages/SyncPage";
 import { fetchConfig } from "./api/fetchBooks";
 import { fetchMe, logout } from "./api/auth";
+import { loadReadBooks, resetReadBooks } from "./readBooks";
 import "./theme.css";
 import "./Root.css";
 
@@ -52,6 +53,12 @@ const Root = () => {
     if (!authChecked) return;
     if (!authRequired || user) loadConfig();
   }, [authChecked, authRequired, user, loadConfig]);
+
+  // ✓ badges on book cards: the user's read books, loaded once per sign-in.
+  useEffect(() => {
+    if (user) loadReadBooks();
+    else resetReadBooks();
+  }, [user]);
 
   const handleLogout = () => {
     logout().finally(() => {

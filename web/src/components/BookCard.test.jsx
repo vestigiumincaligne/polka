@@ -55,3 +55,16 @@ describe("BookCard", () => {
     expect(fills[fills.length - 1].style.width).toBe("2%");
   });
 });
+
+describe("BookCard read badge", () => {
+  it("shows ✓ for books marked read", async () => {
+    const { setBookRead } = await import("../readBooks");
+    const { act } = await import("@testing-library/react");
+    const { container } = render(<MemoryRouter><BookCard book={{ ...book, BookID: 77 }} /></MemoryRouter>);
+    expect(container.querySelector(".book-card__read-badge")).toBeNull();
+    act(() => setBookRead(77, true));
+    expect(container.querySelector(".book-card__read-badge")).not.toBeNull();
+    act(() => setBookRead(77, false));
+    expect(container.querySelector(".book-card__read-badge")).toBeNull();
+  });
+});

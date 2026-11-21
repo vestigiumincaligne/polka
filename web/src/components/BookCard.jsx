@@ -3,10 +3,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import RatingStars from "./RatingStars";
+import { useIsRead } from "../readBooks";
 import "./BookCard.css";
 
 const BookCard = ({ book, size = "md" }) => {
   const [coverFailed, setCoverFailed] = useState(false);
+  const isRead = useIsRead(book?.BookID);
 
   if (!book) return null;
 
@@ -33,6 +35,11 @@ const BookCard = ({ book, size = "md" }) => {
               loading="lazy"
               onError={() => setCoverFailed(true)}
             />
+          )}
+          {isRead && (
+            <div className="book-card__read-badge" title={t("card.read")} aria-label={t("card.read")}>
+              ✓
+            </div>
           )}
           {LibRate > 0 && (
             <div className="book-card__rating-badge">

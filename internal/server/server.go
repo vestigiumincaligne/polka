@@ -225,6 +225,8 @@ func New(cfg *config.Config, log *slog.Logger, st *store.Store, lib *library.Lib
 	mux.HandleFunc("POST /api/v1/lists/{id}/books", s.protected(s.maybeSyncAfter(s.handleListAddBook)))
 	mux.HandleFunc("POST /api/v1/lists/{id}/books/remove", s.protected(s.maybeSyncAfter(s.handleListRemoveBook)))
 	mux.HandleFunc("POST /api/v1/books/{id}/wishlist", s.protected(s.maybeSyncAfter(s.handleWishlistToggle)))
+	mux.HandleFunc("POST /api/v1/books/{id}/read", s.protected(s.maybeSyncAfter(s.handleReadToggle)))
+	mux.HandleFunc("GET /api/v1/read", s.protected(s.handleReadIDs))
 
 	mux.Handle("/", spaHandler(webFS))
 

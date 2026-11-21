@@ -9,7 +9,8 @@ import Shelf from "../components/Shelf";
 import { deleteBook } from "../api/manage";
 import { fetchProgress } from "../api/reader";
 import { rateBook } from "../api/ratings";
-import { toggleWishlist } from "../api/lists";
+import { setRead, toggleWishlist } from "../api/lists";
+import { setBookRead } from "../readBooks";
 import { fetchReaderEmail, setReaderEmail, sendBook } from "../api/send";
 import ListsMenu from "../components/ListsMenu";
 import "./BookPage.css";
@@ -97,6 +98,26 @@ const BookPage = ({ user, sync }) => {
       .finally(() => setWishBusy(false));
   };
 
+  const [readListId, setReadListId] = useState(null);
+  const [readBusy, setReadBusy] = useState(false);
+  const isRead = readListId !== null && listIds.includes(readListId);
+
+  // "Read": also for books read outside Polka. Marking read drops the book
+  // from "Want to read" (the server does the same).
+  const flipRead = () => {
+    if (readBusy) return;
+    setReadBusy(true);
+    setRead(bookId, !isRead)
+      .then((res) => {
+        setReadListId(res.listId);
+        onListChange(res.listId, res.read);
+        if (res.read && wishlistId !== null) onListChange(wishlistId, false);
+        setBookRead(bookId, res.read);
+      })
+      .catch(() => {})
+      .finally(() => setReadBusy(false));
+  };
+
   const sendToReader = () => {
     if (sendState === "sending") return;
     let email = readerEmail;
@@ -160,6 +181,8 @@ const BookPage = ({ user, sync }) => {
           if (cancelled) return;
           const wl = (res.lists ?? []).find((l) => l.builtin === "wishlist");
           setWishlistId(wl?.id ?? null);
+          const rl = (res.lists ?? []).find((l) => l.builtin === "read");
+          setReadListId(rl?.id ?? null);
         })
         .catch(() => {})
     );
@@ -459,6 +482,15 @@ const BookPage = ({ user, sync }) => {
               title={inWishlist ? t("book.wish.remove") : t("book.wish.add")}
             >
               {inWishlist ? t("book.wished") : t("book.wish")}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-ghost book-page__wish book-page__read ${isRead ? "is-on" : ""}`}
+              onClick={flipRead}
+              disabled={readBusy}
+              title={isRead ? t("book.read.unmark") : t("book.read.mark")}
+            >
+              {isRead ? t("book.readDone") : t("book.readMark")}
             </button>
             {sync && (
               <button

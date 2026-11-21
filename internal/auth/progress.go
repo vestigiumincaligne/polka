@@ -43,6 +43,7 @@ type Progress struct {
 // saves within the same second (e.g. right before and after going
 // offline) would compare equal and the later one would be dropped.
 func (s *Service) SaveProgress(ctx context.Context, userID, bookID int64, p Progress) error {
+	before := s.previousOverall(ctx, userID, bookID)
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO reading_progress (user_id, book_id, chapter, position, overall, locator, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', 'now'))
@@ -50,7 +51,10 @@ func (s *Service) SaveProgress(ctx context.Context, userID, bookID int64, p Prog
 		SET chapter = excluded.chapter, position = excluded.position,
 		    overall = excluded.overall, locator = excluded.locator, updated_at = excluded.updated_at`,
 		userID, bookID, p.Chapter, p.Position, p.Overall, p.Locator)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.markReadOnCrossing(ctx, userID, bookID, before, p.Overall)
 }
 
 func (s *Service) GetProgress(ctx context.Context, userID, bookID int64) (Progress, error) {
@@ -65,11 +69,13 @@ func (s *Service) GetProgress(ctx context.Context, userID, bookID int64) (Progre
 }
 
 // ListProgress returns the user's recently read books (newest first).
-// Finished books (overall ~1) are not shown.
+// Finished books (overall ~1) and books marked read are not shown.
 func (s *Service) ListProgress(ctx context.Context, userID int64, limit int) ([]Progress, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT book_id, chapter, position, overall FROM reading_progress
 		WHERE user_id = ? AND overall < 0.98
+		  AND book_id NOT IN (SELECT lb.book_id FROM list_books lb JOIN lists l ON l.id = lb.list_id
+		                      WHERE l.user_id = reading_progress.user_id AND l.builtin = 'read')
 		ORDER BY updated_at DESC LIMIT ?`, userID, limit)
 	if err != nil {
 		return nil, err
