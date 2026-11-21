@@ -92,7 +92,7 @@ const Root = () => {
         <Route path="/" element={layout(<HomePage config={config} />)} />
         <Route path="/search" element={layout(<SearchPage config={config} />)} />
         <Route path="/lists" element={user ? layout(<ListsPage />) : <Navigate to="/" replace />} />
-        <Route path="/book/:bookId" element={layout(<BookPage user={user} sync={sync} />)} />
+        <Route path="/book/:bookId" element={layout(<BookPage user={user} sync={sync} config={config} />)} />
         {(sync || isDesktop) && <Route path="/sync" element={layout(<SyncPage />)} />}
         {/* Читалка — без общей шапки, у неё свой минимальный интерфейс */}
         <Route path="/read/:bookId" element={<ReaderPage />} />

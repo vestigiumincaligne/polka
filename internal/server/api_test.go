@@ -126,6 +126,9 @@ func TestAPIEndToEnd(t *testing.T) {
 	if cfg["numberOfBooks"].(float64) != 1 {
 		t.Errorf("numberOfBooks = %v", cfg["numberOfBooks"])
 	}
+	if _, ok := cfg["epubDownloads"].(bool); !ok {
+		t.Errorf("epubDownloads = %v", cfg["epubDownloads"])
+	}
 
 	// getHomeShelves: a book rated 5 must land in top_rated
 	shelves := getJSON(t, ts.URL+"/main/getBooks/getHomeShelves?limit=10")["shelves"].([]any)

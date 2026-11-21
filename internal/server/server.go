@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -264,7 +265,15 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"collectionName": s.st.GetMeta(r.Context(), "collection_name", "Полка"),
 		"numberOfBooks":  count,
+		"epubDownloads":  epubAvailable(),
 	})
+}
+
+// epubAvailable reports whether FB2→EPUB conversion can run (Pandoc on PATH),
+// so the UI offers the EPUB download only where it works.
+func epubAvailable() bool {
+	_, err := exec.LookPath("pandoc")
+	return err == nil
 }
 
 func init() {
